@@ -2,10 +2,13 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strings"
+
+	"github.com/UnitVectorY-Labs/ghrepocfg/internal/app"
 )
 
 var Version = "dev" // This will be set by the build systems to the release version
@@ -34,5 +37,5 @@ func main() {
 		}
 	}
 
-	// TODO: Implement everything in internal/ package
+	os.Exit(app.Run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, versionString(Version)))
 }
