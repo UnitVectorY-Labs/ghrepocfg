@@ -1,0 +1,15 @@
+name: ghrepocfg
+default_branch: main
+config:
+  description: "Declaratively manage, review, export, and synchronize GitHub repository settings from a configuration file."
+  license: MIT
+  language: go
+  release: release-go
+  justfile: true
+  status: active
+  release_github: false
+  codecov:
+    enabled: false
+  docs:
+    enabled: false
+    domain: ghrepocfg.unitvectorylabs.com
