@@ -174,7 +174,7 @@ Changes:
     "push" -> "maintain"
 
   collaborators.former-user
-    remove (was "pull")
+    remove: "pull"
 ```
 
 No confirmation or mutation occurs. Exit code `2` indicates drift.

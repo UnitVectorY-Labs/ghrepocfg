@@ -20,17 +20,8 @@ Declaratively export, review, and reconcile GitHub repository settings from one 
 - **Strict validation** — unknown and intentionally unsupported YAML keys fail before GitHub is changed
 - **Idempotent apply** — a compliant repository produces no mutation requests
 - **Automation friendly** — dry-run JSON and distinct success, failure, and drift exit codes
+- **Readable terminal output** — semantic colors distinguish additions, changes, removals, warnings, and errors while honoring `NO_COLOR`
 - **Single binary** — calls GitHub directly with no runtime dependency on the GitHub CLI
-
-## Documentation
-
-- [Installation](INSTALL.md)
-- [Usage](USAGE.md)
-- [Examples](EXAMPLES.md)
-- [Configuration Reference](CONFIGURATION.md)
-- [GitHub Features](GITHUB_FEATURES.md)
-- [How It Works](HOW_IT_WORKS.md)
-- [Troubleshooting](TROUBLESHOOTING.md)
 
 {: .highlight }
 **ghrepocfg** manages exactly one GitHub.com repository per invocation. Use a shell loop or CI matrix when applying the same configuration to multiple repositories.

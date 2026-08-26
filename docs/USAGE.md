@@ -79,6 +79,7 @@ Repeated verbose flags do not create additional verbosity levels. There is no qu
 | `GHREPOCFG_CONFIG` | Configuration path when `--config` is absent | 2 |
 | `GH_TOKEN` | Authentication fallback when GitHub CLI credentials are unavailable | 2 |
 | `GITHUB_TOKEN` | Authentication fallback when GitHub CLI credentials and `GH_TOKEN` are unavailable | 3 |
+| `NO_COLOR` | Disable ANSI color when set to a non-empty value | — |
 
 Environment variables are not expanded inside YAML. Configuration is literal: no templates, includes, inheritance, layering, substitution, or expression evaluation are supported.
 
@@ -108,6 +109,24 @@ For apply outside a Git checkout, the last fallback is `.ghrepocfg.yaml` in the 
 - JSON dry-run output is written to stdout without human-readable contamination.
 - Warnings, diagnostics, prompts, and errors are written to stderr where appropriate.
 - Human-readable plans and apply success output are written to stdout.
+
+## Color Output
+
+Interactive terminal output uses color to distinguish meaning:
+
+- cyan for repositories and setting paths;
+- green for additions, desired values, successful operations, and compliant results;
+- yellow for warnings and previous values;
+- red for removals, failures, and errors;
+- dim text for arrows, prompts, verbose context, and unmanaged settings.
+
+Color is enabled only when the corresponding output stream is an interactive terminal. Redirected and piped output remains plain. Set `NO_COLOR` to any non-empty value to disable ANSI color, following the [`NO_COLOR` convention](https://no-color.org/):
+
+```bash
+NO_COLOR=1 ghrepocfg apply --dry-run
+```
+
+`TERM=dumb` also disables styling. YAML and JSON output never contains ANSI escape sequences.
 
 ## Exit Codes
 

@@ -1,8 +1,8 @@
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT) [![Active](https://img.shields.io/badge/Status-Active-green)](https://guide.unitvectorylabs.com/bestpractices/status/#active)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT) [![Active](https://img.shields.io/badge/Status-Active-green)](https://guide.unitvectorylabs.com/bestpractices/status/#active) 
 
 # ghrepocfg
 
-Make GitHub repository governance reviewable, repeatable, and boring.
+Declaratively manage, review, export, and synchronize GitHub repository settings from a configuration file.
 
 `ghrepocfg` captures supported repository settings as literal YAML, previews drift as a complete plan, and applies only what changed. It handles repository settings, security controls, GitHub Actions policy, direct collaborators, team access, and repository rulesets in one standalone Go binary.
 
@@ -19,7 +19,7 @@ Changes:
     true -> false
 ```
 
-Configuration is safe by construction: unknown YAML keys fail, omitted scalar fields are untouched, managed collections are authoritative, visibility and archive state cannot be changed, and every mutation waits until the complete state has been read and planned.
+Configuration is safe by construction: unknown YAML keys fail, omitted scalar fields are untouched, managed collections are authoritative, visibility and archive state cannot be changed, and every mutation waits until the complete state has been read and planned. Interactive output uses semantic color for fast scanning and honors [`NO_COLOR`](https://no-color.org/).
 
 ## Install
 

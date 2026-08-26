@@ -53,8 +53,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, version strin
 	case "export":
 		return runExport(args[1:], stdout, stderr)
 	default:
-		fmt.Fprintf(stderr, "error: unknown command %q (expected apply or export)\n", args[0])
-		return exitError
+		return reportError(stderr, fmt.Errorf("unknown command %q (expected apply or export)", args[0]))
 	}
 }
 
@@ -108,6 +107,7 @@ func parseFlags(command string, args []string, stderr io.Writer) (options, error
 }
 
 func runApply(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	outStyle, errStyle := styleFor(stdout), styleFor(stderr)
 	o, err := parseFlags("apply", args, stderr)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -137,7 +137,7 @@ func runApply(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return reportError(stderr, err)
 	}
 	if o.verbose {
-		fmt.Fprintf(stderr, "Authenticated using %s\n", source)
+		fmt.Fprintf(stderr, "%s %s\n", errStyle.dim("Authenticated using"), errStyle.cyan(source))
 	}
 	client := github.NewClient(token)
 	scope := scopeFor(desired, o.verbose)
@@ -166,25 +166,26 @@ func runApply(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	if !o.yes && !confirm(stdin, stderr, len(plan.Changes)) {
-		fmt.Fprintln(stderr, "Apply cancelled.")
+		fmt.Fprintln(stderr, errStyle.yellow("Apply cancelled."))
 		return exitError
 	}
 	succeeded, failed := plan.Execute(ctx)
 	for _, path := range succeeded {
-		fmt.Fprintf(stdout, "Applied %s\n", path)
+		fmt.Fprintf(stdout, "%s %s\n", outStyle.green("Applied"), outStyle.cyan(path))
 	}
 	if len(failed) > 0 {
-		fmt.Fprintf(stderr, "\n%d change(s) failed:\n", len(failed))
+		fmt.Fprintf(stderr, "\n%s\n", errStyle.red(errStyle.bold(fmt.Sprintf("%d change(s) failed:", len(failed)))))
 		for _, f := range failed {
-			fmt.Fprintf(stderr, "  %s: %s\n", f.Path, f.Error)
+			fmt.Fprintf(stderr, "  %s: %s\n", errStyle.red(f.Path), f.Error)
 		}
 		return exitError
 	}
-	fmt.Fprintf(stdout, "Applied %d change(s).\n", len(succeeded))
+	fmt.Fprintln(stdout, outStyle.green(outStyle.bold(fmt.Sprintf("Applied %d change(s).", len(succeeded)))))
 	return exitOK
 }
 
 func runExport(args []string, stdout, stderr io.Writer) int {
+	errStyle := styleFor(stderr)
 	o, err := parseFlags("export", args, stderr)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -220,7 +221,7 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 		return reportError(stderr, err)
 	}
 	if o.verbose {
-		fmt.Fprintf(stderr, "Authenticated using %s\n", source)
+		fmt.Fprintf(stderr, "%s %s\n", errStyle.dim("Authenticated using"), errStyle.cyan(source))
 	}
 	scope := github.ReadScope{Verbose: o.verbose}
 	if full {
@@ -251,11 +252,11 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 		return reportError(stderr, err)
 	}
 	for _, w := range state.Warnings {
-		fmt.Fprintln(stderr, "warning:", w)
+		fmt.Fprintf(stderr, "%s %s\n", errStyle.yellow(errStyle.bold("warning:")), w)
 	}
 	if o.verbose {
 		for _, f := range state.UnknownFields {
-			fmt.Fprintln(stderr, "unmanaged GitHub repository response field:", f)
+			fmt.Fprintf(stderr, "%s %s\n", errStyle.dim("unmanaged GitHub repository response field:"), errStyle.cyan(f))
 		}
 	}
 	if o.dryRun {
@@ -281,7 +282,7 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 	if err := atomicWrite(destination, b); err != nil {
 		return reportError(stderr, err)
 	}
-	fmt.Fprintf(stderr, "Exported %s to %s\n", owner+"/"+repo, destination)
+	fmt.Fprintf(stderr, "%s %s %s %s\n", errStyle.green(errStyle.bold("Exported")), errStyle.cyan(owner+"/"+repo), errStyle.dim("to"), errStyle.cyan(destination))
 	return exitOK
 }
 
@@ -291,30 +292,34 @@ func scopeFor(c *config.Config, verbose bool) github.ReadScope {
 }
 
 func printPlan(w io.Writer, p *reconcile.Plan) {
-	fmt.Fprintf(w, "Repository: %s\n\n", p.Repository)
+	printPlanStyled(w, p, styleFor(w))
+}
+
+func printPlanStyled(w io.Writer, p *reconcile.Plan, s styler) {
+	fmt.Fprintf(w, "%s %s\n\n", s.bold("Repository:"), s.cyan(p.Repository))
 	for _, warning := range p.Warnings {
-		fmt.Fprintf(w, "Warning: %s\n", warning)
+		fmt.Fprintf(w, "%s %s\n", s.yellow(s.bold("Warning:")), warning)
 	}
 	if len(p.Warnings) > 0 {
 		fmt.Fprintln(w)
 	}
 	if len(p.Changes) == 0 {
-		fmt.Fprintln(w, "No changes.")
+		fmt.Fprintln(w, s.green(s.bold("No changes.")))
 	} else {
-		fmt.Fprintln(w, "Changes:")
+		fmt.Fprintln(w, s.bold("Changes:"))
 		for _, c := range p.Changes {
 			switch c.Operation {
 			case reconcile.Add:
-				fmt.Fprintf(w, "\n  %s\n    add: %s\n", c.Path, format(c.After))
+				fmt.Fprintf(w, "\n  %s\n    %s %s\n", s.cyan(c.Path), s.green("add:"), s.green(format(c.After)))
 			case reconcile.Remove:
-				fmt.Fprintf(w, "\n  %s\n    remove (was %s)\n", c.Path, format(c.Before))
+				fmt.Fprintf(w, "\n  %s\n    %s %s\n", s.cyan(c.Path), s.red("remove:"), s.red(format(c.Before)))
 			default:
-				fmt.Fprintf(w, "\n  %s\n    %s -> %s\n", c.Path, format(c.Before), format(c.After))
+				fmt.Fprintf(w, "\n  %s\n    %s %s %s\n", s.cyan(c.Path), s.yellow(format(c.Before)), s.dim("->"), s.green(format(c.After)))
 			}
 		}
 	}
 	if len(p.Unmanaged) > 0 {
-		fmt.Fprintf(w, "\nUnmanaged sections: %s\n", strings.Join(p.Unmanaged, ", "))
+		fmt.Fprintf(w, "\n%s %s\n", s.dim("Unmanaged settings:"), s.dim(strings.Join(p.Unmanaged, ", ")))
 	}
 }
 func format(v any) string {
@@ -332,7 +337,8 @@ func format(v any) string {
 	}
 }
 func confirm(r io.Reader, w io.Writer, n int) bool {
-	fmt.Fprintf(w, "\nApply %d change(s)? [y/N] ", n)
+	s := styleFor(w)
+	fmt.Fprintf(w, "\n%s %s ", s.yellow(s.bold(fmt.Sprintf("Apply %d change(s)?", n))), s.dim("[y/N]"))
 	line, _ := bufio.NewReader(r).ReadString('\n')
 	line = strings.ToLower(strings.TrimSpace(line))
 	return line == "y" || line == "yes"
@@ -342,7 +348,7 @@ func writeJSON(w io.Writer, v any) {
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(v)
 }
-func reportError(w io.Writer, err error) int { fmt.Fprintln(w, "error:", err); return exitError }
+func reportError(w io.Writer, err error) int { printError(w, err); return exitError }
 func actionableAPIError(err error) error {
 	var apiErr *github.APIError
 	if errors.As(err, &apiErr) {
@@ -561,20 +567,24 @@ func walkDiff(path string, a, b any, out *[]configChange) {
 	*out = append(*out, configChange{op, path, a, b})
 }
 func printExportDiff(w io.Writer, repo string, changes []configChange) {
-	fmt.Fprintf(w, "Repository: %s\n\n", repo)
+	printExportDiffStyled(w, repo, changes, styleFor(w))
+}
+
+func printExportDiffStyled(w io.Writer, repo string, changes []configChange, s styler) {
+	fmt.Fprintf(w, "%s %s\n\n", s.bold("Repository:"), s.cyan(repo))
 	if len(changes) == 0 {
-		fmt.Fprintln(w, "Export would make no changes.")
+		fmt.Fprintln(w, s.green(s.bold("Export would make no changes.")))
 		return
 	}
-	fmt.Fprintln(w, "Export changes:")
+	fmt.Fprintln(w, s.bold("Export changes:"))
 	for _, c := range changes {
-		fmt.Fprintf(w, "\n  %s\n    %s", c.Path, c.Operation)
+		fmt.Fprintf(w, "\n  %s\n    ", s.cyan(c.Path))
 		if c.Operation == reconcile.Modify {
-			fmt.Fprintf(w, ": %s -> %s", format(c.Before), format(c.After))
+			fmt.Fprintf(w, "%s %s %s %s", s.yellow("modify:"), s.yellow(format(c.Before)), s.dim("->"), s.green(format(c.After)))
 		} else if c.Operation == reconcile.Add {
-			fmt.Fprintf(w, ": %s", format(c.After))
+			fmt.Fprintf(w, "%s %s", s.green("add:"), s.green(format(c.After)))
 		} else {
-			fmt.Fprintf(w, ": %s", format(c.Before))
+			fmt.Fprintf(w, "%s %s", s.red("remove:"), s.red(format(c.Before)))
 		}
 		fmt.Fprintln(w)
 	}
