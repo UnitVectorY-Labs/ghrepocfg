@@ -18,7 +18,7 @@ Declaratively export, review, and reconcile GitHub repository settings from one 
 - **Safe access management** — reconcile direct collaborators, pending invitations, and team permissions authoritatively
 - **Repository rulesets** — manage branch, tag, and push rulesets without converting legacy protections
 - **Strict validation** — unknown and intentionally unsupported YAML keys fail before GitHub is changed
-- **Idempotent apply** — a compliant repository produces no mutation requests
+- **Idempotent apply** — a compliant repository produces no mutation requests, including rules whose default parameters GitHub omits from exports
 - **Automation friendly** — dry-run JSON and distinct success, failure, and drift exit codes
 - **Readable terminal output** — semantic colors distinguish additions, changes, removals, warnings, and errors while honoring `NO_COLOR`
 - **Single binary** — calls GitHub directly with no runtime dependency on the GitHub CLI

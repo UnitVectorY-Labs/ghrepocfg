@@ -1,9 +1,11 @@
 package exportconfig
 
 import (
+	"strings"
+	"testing"
+
 	"github.com/UnitVectorY-Labs/ghrepocfg/internal/config"
 	"github.com/UnitVectorY-Labs/ghrepocfg/internal/github"
-	"testing"
 )
 
 func p[T any](v T) *T { return &v }
@@ -22,5 +24,23 @@ func TestScopedFromStatePreservesScalarAndSectionScope(t *testing.T) {
 	}
 	if (*got.Collaborators)["alice"].Permission != "push" {
 		t.Fatal("managed collection not refreshed authoritatively")
+	}
+}
+
+func TestFullExportRoundTripsRulesWithOmittedDefaultParameters(t *testing.T) {
+	state := &github.State{Rulesets: map[string]github.Ruleset{
+		"tag": {Value: config.Ruleset{
+			Target: "tag", Enforcement: "active", Rules: []config.Rule{{Type: "update"}},
+		}},
+	}}
+	b, err := config.Marshal(FromState(state))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.Parse(b); err != nil {
+		t.Fatalf("full export did not produce a valid configuration: %v\n%s", err, b)
+	}
+	if !strings.Contains(string(b), "- type: update") {
+		t.Fatalf("export omitted update rule: %s", b)
 	}
 }

@@ -67,6 +67,13 @@ func TestRuleParametersMustMatchRuleType(t *testing.T) {
 	}
 }
 
+func TestRulesetAcceptsGitHubOmittedDefaultParameters(t *testing.T) {
+	_, err := Parse([]byte("rulesets:\n  tag:\n    target: tag\n    enforcement: active\n    rules:\n      - type: update\n"))
+	if err != nil {
+		t.Fatalf("Parse() rejected a rule GitHub exports without parameters: %v", err)
+	}
+}
+
 func TestMarshalRoundTrip(t *testing.T) {
 	c, err := Parse([]byte("repository:\n  topics: [go, github]\nteams:\n  platform:\n    permission: maintain\n"))
 	if err != nil {
