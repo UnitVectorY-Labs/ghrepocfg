@@ -373,9 +373,6 @@ func validateRule(rule Rule) error {
 		allowedField[f] = true
 	}
 	if rule.Parameters == nil {
-		if len(fields) > 0 {
-			return fmt.Errorf("rule type %q requires parameters", rule.Type)
-		}
 		return nil
 	}
 	if len(fields) == 0 {
