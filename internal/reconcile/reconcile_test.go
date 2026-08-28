@@ -127,3 +127,31 @@ func TestIdempotentPlan(t *testing.T) {
 		t.Fatalf("verbose unmanaged = %v", p.Unmanaged)
 	}
 }
+
+func TestRulesetUpdateFalseMatchesGitHubOmittedParameters(t *testing.T) {
+	want := map[string]config.Ruleset{"tag": {
+		Target: "tag", Enforcement: "active",
+		Rules: []config.Rule{{Type: "update", Parameters: &config.RuleParameters{UpdateAllowsFetchAndMerge: ptr(false)}}},
+	}}
+	got := map[string]github.Ruleset{"tag": {
+		ID: 1, Value: config.Ruleset{Target: "tag", Enforcement: "active", Rules: []config.Rule{{Type: "update"}}},
+	}}
+	p := Build("o", "r", &config.Config{Rulesets: &want}, &github.State{Rulesets: got}, &fakeExec{}, false)
+	if p.Drift || len(p.Changes) != 0 {
+		t.Fatalf("GitHub-omitted false update parameter produced drift: %#v", p.Changes)
+	}
+}
+
+func TestRulesetUpdateTrueDoesNotMatchGitHubOmittedParameters(t *testing.T) {
+	want := map[string]config.Ruleset{"branch": {
+		Enforcement: "active",
+		Rules:       []config.Rule{{Type: "update", Parameters: &config.RuleParameters{UpdateAllowsFetchAndMerge: ptr(true)}}},
+	}}
+	got := map[string]github.Ruleset{"branch": {
+		ID: 1, Value: config.Ruleset{Target: "branch", Enforcement: "active", Rules: []config.Rule{{Type: "update"}}},
+	}}
+	p := Build("o", "r", &config.Config{Rulesets: &want}, &github.State{Rulesets: got}, &fakeExec{}, false)
+	if !p.Drift || len(p.Changes) != 1 || p.Changes[0].Path != "rulesets.branch" {
+		t.Fatalf("explicit true update parameter must remain drift: %#v", p.Changes)
+	}
+}

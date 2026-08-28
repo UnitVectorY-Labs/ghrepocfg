@@ -177,7 +177,7 @@ Nested object shapes:
 - `workflows`: objects with `path`, `repository_id`, optional `ref`, and optional `sha`
 - `code_scanning_tools`: objects with `tool`, `security_alerts_threshold`, and `alerts_threshold`
 
-Workflow repository IDs, reviewer IDs, integration IDs, and actor IDs may limit portability. GitHub may omit a rule's parameters when every parameter uses its default; this is valid YAML and is preserved by export. Unsupported rule types, misspelled keys, and parameters used with the wrong rule type fail validation.
+Workflow repository IDs, reviewer IDs, integration IDs, and actor IDs may limit portability. GitHub may omit a rule's parameters when every parameter uses its default; this is valid YAML and is preserved by export. For `update`, an omitted `update_allows_fetch_and_merge` value and explicit `false` compare as the same GitHub default, while explicit `true` remains a managed requirement. Unsupported rule types, misspelled keys, and parameters used with the wrong rule type fail validation.
 
 ## Generated YAML
 
