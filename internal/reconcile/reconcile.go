@@ -298,11 +298,28 @@ func rulesetChanges(p *Plan, owner, repo string, want map[string]config.Ruleset,
 		case !dok && cok:
 			id := c.ID
 			add(p, Change{Remove, "rulesets." + name, c.Value, nil, func(ctx context.Context) error { return e.RemoveRuleset(ctx, owner, repo, id) }})
-		case dok && cok && !valuesEqual(d, c.Value):
+		case dok && cok && !rulesetsEqual(d, c.Value):
 			id, v := c.ID, d
 			add(p, Change{Modify, "rulesets." + name, c.Value, v, func(ctx context.Context) error { return e.UpdateRuleset(ctx, owner, repo, name, id, v) }})
 		}
 	}
+}
+
+func rulesetsEqual(a, b config.Ruleset) bool {
+	a = normalizeRulesetDefaults(a)
+	b = normalizeRulesetDefaults(b)
+	return valuesEqual(a, b)
+}
+
+func normalizeRulesetDefaults(v config.Ruleset) config.Ruleset {
+	v.Rules = append([]config.Rule(nil), v.Rules...)
+	for i := range v.Rules {
+		rule := &v.Rules[i]
+		if rule.Type == "update" && (rule.Parameters == nil || rule.Parameters.UpdateAllowsFetchAndMerge == nil || !*rule.Parameters.UpdateAllowsFetchAndMerge) {
+			rule.Parameters = nil
+		}
+	}
+	return v
 }
 
 func unmanagedRepository(desired, current *config.RepositorySettings) []string {
