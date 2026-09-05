@@ -26,5 +26,3 @@ Declaratively export, review, and reconcile GitHub repository settings from one 
 
 {: .highlight }
 **ghrepocfg** manages exactly one GitHub.com repository per invocation. Use a shell loop or CI matrix when applying the same configuration to multiple repositories.
-
-Learn how repository metadata stays portable in [Custom Properties](CUSTOM_PROPERTIES.md).

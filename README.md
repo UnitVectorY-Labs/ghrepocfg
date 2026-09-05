@@ -53,7 +53,6 @@ Use `--repo owner/repo` and `--config PATH` to apply one portable configuration 
 - [Usage](docs/USAGE.md)
 - [Examples](docs/EXAMPLES.md)
 - [Configuration reference](docs/CONFIGURATION.md)
-- [Custom properties](docs/CUSTOM_PROPERTIES.md)
 - [GitHub features](docs/GITHUB_FEATURES.md)
 - [How it works](docs/HOW_IT_WORKS.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)

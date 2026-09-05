@@ -37,10 +37,6 @@ GitHub response roles `read` and `write` are normalized to request permissions `
 
 Pending collaborator invitations are treated as existing access. This prevents a repeated apply from sending the same invitation again and permits authoritative removal of an unwanted pending invitation.
 
-## Custom Properties
-
-Custom-property definitions remain organization- or enterprise-managed. **ghrepocfg** reads and reconciles only the values assigned to the target repository. Each changed value is sent separately so an organization-restricted or invalid value can fail without blocking unrelated property changes. See [Custom Properties](CUSTOM_PROPERTIES.md).
-
 ## Repository Rulesets
 
 Rulesets use their names as portable YAML keys. Live numeric IDs are retained only internally for update and deletion requests.
