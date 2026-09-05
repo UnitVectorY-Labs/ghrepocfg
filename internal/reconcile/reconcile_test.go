@@ -121,10 +121,11 @@ func TestCustomPropertiesAreAuthoritativeAndFailuresAreIsolated(t *testing.T) {
 		"unchanged":   {Value: []string{"two", "one"}},
 	}
 	got := map[string]config.CustomPropertyValue{
-		"editable":   {Value: "old"},
-		"restricted": {Value: "old"},
-		"removed":    {Value: []string{"legacy"}},
-		"unchanged":  {Value: []string{"one", "two"}},
+		"editable":      {Value: "old"},
+		"restricted":    {Value: "old"},
+		"removed":       {Value: []string{"legacy"}},
+		"already_unset": {},
+		"unchanged":     {Value: []string{"one", "two"}},
 	}
 	f := &fakeExec{fail: map[string]bool{"custom-property:restricted": true}}
 	p := Build("o", "r", &config.Config{CustomProperties: &want}, &github.State{CustomProperties: got}, f, false)

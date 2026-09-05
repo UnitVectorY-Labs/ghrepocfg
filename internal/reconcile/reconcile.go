@@ -119,7 +119,7 @@ func customPropertyChanges(p *Plan, owner, repo string, want, got map[string]con
 		case desiredOK && !currentOK && desired.Value != nil:
 			value := desired
 			add(p, Change{Add, "custom_properties." + name, nil, value.Value, func(ctx context.Context) error { return e.SetCustomProperty(ctx, owner, repo, name, value) }})
-		case !desiredOK && currentOK:
+		case !desiredOK && currentOK && current.Value != nil:
 			unset := config.CustomPropertyValue{}
 			add(p, Change{Remove, "custom_properties." + name, current.Value, nil, func(ctx context.Context) error { return e.SetCustomProperty(ctx, owner, repo, name, unset) }})
 		case desiredOK && currentOK && !customPropertyValuesEqual(desired, current):
