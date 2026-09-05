@@ -42,6 +42,8 @@ If the GitHub CLI is unavailable, set `GH_TOKEN` or `GITHUB_TOKEN`. See [Install
 
 Verify that the token can see the repository and has the permissions required by every managed section. Full export and authoritative security, access, and ruleset sections require repository admin visibility.
 
+Custom-property writes additionally require repository administration or the repository-level **Custom properties: write** permission, and the organization or enterprise definition must allow the caller to edit values.
+
 GitHub may use `404` to hide an inaccessible resource. **ghrepocfg** fails rather than treating ambiguous authoritative state as empty.
 
 ## GitHub Returns 409 for Selected Actions
@@ -58,6 +60,8 @@ Then add `selected_actions` policy in a subsequent configuration.
 ## GitHub Rejects a Supported Setting
 
 Repository visibility, organization policy, product licensing, fork status, or another GitHub constraint may make a supported repository-level field unavailable for a particular repository. The error is reported for that path, and unrelated independent mutations continue.
+
+For custom properties, confirm that the property exists, the value is allowed, the property is not restricted to other organization or enterprise actors, and required properties are not being unset. A rejected custom property does not prevent other planned property requests from running.
 
 ## Dry-Run Returns a Nonzero Status
 

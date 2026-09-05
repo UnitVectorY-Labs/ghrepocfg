@@ -19,6 +19,7 @@ permalink: /github-features
 **ghrepocfg** manages repository-level state on GitHub.com in these domains:
 
 - Repository feature flags, merge behavior, default branch, descriptions, homepage, templates, signoff, forking, and topics
+- Repository custom-property values defined by an organization or enterprise
 - Dependabot alerts and automated security fixes
 - GitHub security-and-analysis feature status when exposed by the repository and plan
 - GitHub Actions availability, allowed-action policy, selected-action policy, and default workflow permissions
@@ -69,7 +70,7 @@ A generated configuration should not be assumed to represent legacy protection s
 - Repository visibility and public/private/internal transitions
 - Repository archive state, deletion, transfer, name, and owner
 - Repository secrets or other write-only values
-- Organization and enterprise configuration, including inherited rulesets
+- Organization and enterprise configuration, including custom-property definitions and inherited rulesets
 - Legacy branch and tag protection mutation or migration
 - GitHub Enterprise Server and custom API base URLs
 - Deploy keys, webhooks, environments, Pages, issue labels, variables, and unlisted repository collections

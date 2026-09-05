@@ -90,3 +90,40 @@ func TestMarshalRoundTrip(t *testing.T) {
 		t.Fatalf("generated YAML did not round trip: %v\n%s", err, b)
 	}
 }
+
+func TestCustomPropertyValuesRoundTrip(t *testing.T) {
+	c, err := Parse([]byte("custom_properties:\n  status: active\n  platforms: [linux, macos]\n  retired: null\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	properties := *c.CustomProperties
+	if properties["status"].Value != "active" {
+		t.Fatalf("status = %#v", properties["status"].Value)
+	}
+	platforms, ok := properties["platforms"].Value.([]string)
+	if !ok || len(platforms) != 2 || platforms[0] != "linux" || platforms[1] != "macos" {
+		t.Fatalf("platforms = %#v", properties["platforms"].Value)
+	}
+	if properties["retired"].Value != nil {
+		t.Fatalf("retired = %#v", properties["retired"].Value)
+	}
+	b, err := Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Parse(b); err != nil {
+		t.Fatalf("generated custom properties did not round trip: %v\n%s", err, b)
+	}
+}
+
+func TestCustomPropertyValuesRejectNonStrings(t *testing.T) {
+	for _, input := range []string{
+		"custom_properties:\n  status: true\n",
+		"custom_properties:\n  priorities: [high, 1]\n",
+		"custom_properties:\n  metadata: {tier: one}\n",
+	} {
+		if _, err := Parse([]byte(input)); err == nil || !strings.Contains(err.Error(), "custom property") {
+			t.Errorf("Parse(%q) error = %v", input, err)
+		}
+	}
+}

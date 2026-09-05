@@ -8,6 +8,8 @@ import (
 
 func FromState(s *github.State) *config.Config {
 	c := &config.Config{Repository: s.Repository, Security: s.Security, Actions: s.Actions}
+	properties := cloneCustomProperties(s.CustomProperties)
+	c.CustomProperties = &properties
 	collabs := map[string]config.Access{}
 	for name, v := range s.Collaborators {
 		collabs[name] = config.Access{Permission: v.Permission}
@@ -31,6 +33,10 @@ func ScopedFromState(base *config.Config, s *github.State) *config.Config {
 	if base.Repository != nil {
 		out.Repository = &config.RepositorySettings{}
 		copyPresent(base.Repository, s.Repository, out.Repository)
+	}
+	if base.CustomProperties != nil {
+		properties := cloneCustomProperties(s.CustomProperties)
+		out.CustomProperties = &properties
 	}
 	if base.Security != nil {
 		out.Security = &config.SecuritySettings{}
@@ -106,6 +112,17 @@ func ScopedFromState(base *config.Config, s *github.State) *config.Config {
 			m[n] = v.Value
 		}
 		out.Rulesets = &m
+	}
+	return out
+}
+
+func cloneCustomProperties(in map[string]config.CustomPropertyValue) map[string]config.CustomPropertyValue {
+	out := make(map[string]config.CustomPropertyValue, len(in))
+	for name, value := range in {
+		if list, ok := value.Value.([]string); ok {
+			value.Value = append([]string(nil), list...)
+		}
+		out[name] = value
 	}
 	return out
 }

@@ -4,7 +4,7 @@
 
 Declaratively manage, review, export, and synchronize GitHub repository settings from a configuration file.
 
-`ghrepocfg` captures supported repository settings as literal YAML, previews drift as a complete plan, and applies only what changed. It handles repository settings, security controls, GitHub Actions policy, direct collaborators, team access, and repository rulesets in one standalone Go binary.
+`ghrepocfg` captures supported repository settings as literal YAML, previews drift as a complete plan, and applies only what changed. It handles repository settings, custom properties, security controls, GitHub Actions policy, direct collaborators, team access, and repository rulesets in one standalone Go binary.
 
 ```console
 $ ghrepocfg export --repo acme/reference --config .ghrepocfg.yaml
