@@ -44,3 +44,25 @@ func TestFullExportRoundTripsRulesWithOmittedDefaultParameters(t *testing.T) {
 		t.Fatalf("export omitted update rule: %s", b)
 	}
 }
+
+func TestCustomPropertiesExportFullAndScoped(t *testing.T) {
+	properties := map[string]config.CustomPropertyValue{
+		"status":    {Value: "active"},
+		"platforms": {Value: []string{"linux", "macos"}},
+	}
+	state := &github.State{CustomProperties: properties}
+	full := FromState(state)
+	if full.CustomProperties == nil || (*full.CustomProperties)["status"].Value != "active" {
+		t.Fatalf("full custom properties = %#v", full.CustomProperties)
+	}
+	base := &config.Config{CustomProperties: &map[string]config.CustomPropertyValue{}}
+	scoped := ScopedFromState(base, state)
+	if scoped.CustomProperties == nil || len(*scoped.CustomProperties) != 2 {
+		t.Fatalf("scoped custom properties = %#v", scoped.CustomProperties)
+	}
+	original := properties["platforms"]
+	original.Value.([]string)[0] = "changed"
+	if got := (*scoped.CustomProperties)["platforms"].Value.([]string)[0]; got != "linux" {
+		t.Fatalf("export did not clone array, got %q", got)
+	}
+}

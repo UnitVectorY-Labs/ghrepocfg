@@ -9,7 +9,7 @@ permalink: /
 
 Declaratively export, review, and reconcile GitHub repository settings from one portable YAML file.
 
-**ghrepocfg** turns repository governance into a code-reviewable contract. It manages repository behavior, security features, GitHub Actions policy, direct collaborators, team access, and repository rulesets while keeping every proposed change visible before it is applied.
+**ghrepocfg** turns repository governance into a code-reviewable contract. It manages repository behavior, custom properties, security features, GitHub Actions policy, direct collaborators, team access, and repository rulesets while keeping every proposed change visible before it is applied.
 
 ## Key Features
 
@@ -17,6 +17,7 @@ Declaratively export, review, and reconcile GitHub repository settings from one 
 - **Complete drift plans** — inspect every addition, modification, and removal before applying
 - **Safe access management** — reconcile direct collaborators, pending invitations, and team permissions authoritatively
 - **Repository rulesets** — manage branch, tag, and push rulesets without converting legacy protections
+- **Custom properties** — export and reconcile repository metadata, including multi-select values
 - **Strict validation** — unknown and intentionally unsupported YAML keys fail before GitHub is changed
 - **Idempotent apply** — a compliant repository produces no mutation requests, including explicit default values that GitHub omits from ruleset responses
 - **Automation friendly** — dry-run JSON and distinct success, failure, and drift exit codes
@@ -25,3 +26,5 @@ Declaratively export, review, and reconcile GitHub repository settings from one 
 
 {: .highlight }
 **ghrepocfg** manages exactly one GitHub.com repository per invocation. Use a shell loop or CI matrix when applying the same configuration to multiple repositories.
+
+Learn how repository metadata stays portable in [Custom Properties](CUSTOM_PROPERTIES.md).

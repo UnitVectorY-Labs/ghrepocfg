@@ -41,6 +41,7 @@ type Plan struct {
 type Executor interface {
 	UpdateRepository(context.Context, string, string, map[string]any) error
 	ReplaceTopics(context.Context, string, string, []string) error
+	SetCustomProperty(context.Context, string, string, string, config.CustomPropertyValue) error
 	UpdateSecurityAnalysis(context.Context, string, string, map[string]any) error
 	SetVulnerabilityAlerts(context.Context, string, string, bool) error
 	SetAutomatedSecurityFixes(context.Context, string, string, bool) error
@@ -63,6 +64,11 @@ func Build(owner, repo string, desired *config.Config, current *github.State, ex
 	}
 	if verbose {
 		p.Unmanaged = append(p.Unmanaged, unmanagedRepository(desired.Repository, current.Repository)...)
+	}
+	if desired.CustomProperties != nil {
+		customPropertyChanges(p, owner, repo, *desired.CustomProperties, current.CustomProperties, exec)
+	} else if verbose {
+		p.Unmanaged = append(p.Unmanaged, "custom_properties")
 	}
 	if desired.Security != nil {
 		securityChanges(p, owner, repo, desired.Security, current.Security, exec)
@@ -91,6 +97,49 @@ func Build(owner, repo string, desired *config.Config, current *github.State, ex
 	}
 	p.Drift = len(p.Changes) > 0
 	return p
+}
+
+func customPropertyChanges(p *Plan, owner, repo string, want, got map[string]config.CustomPropertyValue, e Executor) {
+	keys := make([]string, 0, len(want)+len(got))
+	seen := make(map[string]bool, len(want))
+	for name := range want {
+		seen[name] = true
+		keys = append(keys, name)
+	}
+	for name := range got {
+		if !seen[name] {
+			keys = append(keys, name)
+		}
+	}
+	sort.Strings(keys)
+	for _, name := range keys {
+		desired, desiredOK := want[name]
+		current, currentOK := got[name]
+		switch {
+		case desiredOK && !currentOK && desired.Value != nil:
+			value := desired
+			add(p, Change{Add, "custom_properties." + name, nil, value.Value, func(ctx context.Context) error { return e.SetCustomProperty(ctx, owner, repo, name, value) }})
+		case !desiredOK && currentOK:
+			unset := config.CustomPropertyValue{}
+			add(p, Change{Remove, "custom_properties." + name, current.Value, nil, func(ctx context.Context) error { return e.SetCustomProperty(ctx, owner, repo, name, unset) }})
+		case desiredOK && currentOK && !customPropertyValuesEqual(desired, current):
+			value := desired
+			add(p, Change{Modify, "custom_properties." + name, current.Value, value.Value, func(ctx context.Context) error { return e.SetCustomProperty(ctx, owner, repo, name, value) }})
+		}
+	}
+}
+
+func customPropertyValuesEqual(a, b config.CustomPropertyValue) bool {
+	aList, aIsList := a.Value.([]string)
+	bList, bIsList := b.Value.([]string)
+	if !aIsList || !bIsList {
+		return valuesEqual(a.Value, b.Value)
+	}
+	aList = append([]string(nil), aList...)
+	bList = append([]string(nil), bList...)
+	sort.Strings(aList)
+	sort.Strings(bList)
+	return valuesEqual(aList, bList)
 }
 
 func add(p *Plan, c Change) { p.Changes = append(p.Changes, c) }

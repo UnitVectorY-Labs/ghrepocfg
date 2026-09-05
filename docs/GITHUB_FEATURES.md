@@ -19,6 +19,7 @@ permalink: /github-features
 **ghrepocfg** manages repository-level state on GitHub.com in these domains:
 
 - Repository feature flags, merge behavior, default branch, descriptions, homepage, templates, signoff, forking, and topics
+- Repository custom-property values defined by an organization or enterprise
 - Dependabot alerts and automated security fixes
 - GitHub security-and-analysis feature status when exposed by the repository and plan
 - GitHub Actions availability, allowed-action policy, selected-action policy, and default workflow permissions
@@ -35,6 +36,10 @@ Direct collaborators and teams are separate authoritative collections. When a co
 GitHub response roles `read` and `write` are normalized to request permissions `pull` and `push`. Custom repository roles use `custom:ROLE NAME` in YAML.
 
 Pending collaborator invitations are treated as existing access. This prevents a repeated apply from sending the same invitation again and permits authoritative removal of an unwanted pending invitation.
+
+## Custom Properties
+
+Custom-property definitions remain organization- or enterprise-managed. **ghrepocfg** reads and reconciles only the values assigned to the target repository. Each changed value is sent separately so an organization-restricted or invalid value can fail without blocking unrelated property changes. See [Custom Properties](CUSTOM_PROPERTIES.md).
 
 ## Repository Rulesets
 
@@ -69,7 +74,7 @@ A generated configuration should not be assumed to represent legacy protection s
 - Repository visibility and public/private/internal transitions
 - Repository archive state, deletion, transfer, name, and owner
 - Repository secrets or other write-only values
-- Organization and enterprise configuration, including inherited rulesets
+- Organization and enterprise configuration, including custom-property definitions and inherited rulesets
 - Legacy branch and tag protection mutation or migration
 - GitHub Enterprise Server and custom API base URLs
 - Deploy keys, webhooks, environments, Pages, issue labels, variables, and unlisted repository collections

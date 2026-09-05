@@ -32,6 +32,7 @@ Unknown keys at every modeled level are errors. Empty strings, `false`, `0`, `[]
 | Key | Shape | Semantics |
 |---|---|---|
 | `repository` | object | Each present field is managed independently |
+| `custom_properties` | map keyed by property name | Present map is authoritative |
 | `security` | object | Each present feature is managed independently |
 | `actions` | object | Each present field is managed independently |
 | `collaborators` | map keyed by GitHub login | Present map is authoritative |
@@ -68,6 +69,23 @@ Unknown keys at every modeled level are errors. Empty strings, `false`, `0`, `[]
 | `topics` | array of strings | Complete desired topic set |
 
 Repository `name`, `owner`, `private`, `visibility`, and `archived` are intentionally invalid. Repository deletion and transfer have no configuration representation. `has_downloads` is recognized in GitHub responses but is not a supported current update field.
+
+## Custom Properties
+
+`custom_properties` maps organization-defined property names to their repository values. Values may be strings, arrays of strings for multi-select properties, or `null` to explicitly unset a value. Quote values such as `"true"` and `"false"`; YAML booleans are rejected because GitHub custom-property values are strings.
+
+The map is authoritative. A property returned by GitHub but omitted from a present map is unset. An empty map therefore requests that every currently set, removable custom property be unset. Organization and enterprise definitions, allowed values, required properties, and edit restrictions are not changed.
+
+```yaml
+custom_properties:
+  status: active
+  platforms:
+    - linux
+    - macos
+  retired_at: null
+```
+
+See [Custom Properties](CUSTOM_PROPERTIES.md) for permissions, restrictions, and failure behavior.
 
 ## Security
 

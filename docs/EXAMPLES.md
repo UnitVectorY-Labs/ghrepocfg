@@ -63,6 +63,19 @@ repository:
 
 The list is the complete desired topic set. Use `topics: []` to remove all topics.
 
+## Manage Custom Properties
+
+```yaml
+custom_properties:
+  project-status: Active
+  programming-language: go
+  supported-platforms:
+    - linux
+    - macos
+```
+
+The map is the complete desired set of assigned values. Omitted entries are unset; omit the entire section to leave custom properties unmanaged. Property definitions and allowed values must already exist in the repository's organization or enterprise.
+
 ## Manage Repository Access
 
 ```yaml

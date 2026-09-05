@@ -27,6 +27,9 @@ func (f *fakeExec) UpdateRepository(context.Context, string, string, map[string]
 func (f *fakeExec) ReplaceTopics(context.Context, string, string, []string) error {
 	return f.call("topics")
 }
+func (f *fakeExec) SetCustomProperty(_ context.Context, _, _, name string, _ config.CustomPropertyValue) error {
+	return f.call("custom-property:" + name)
+}
 func (f *fakeExec) UpdateSecurityAnalysis(context.Context, string, string, map[string]any) error {
 	return f.call("security-analysis")
 }
@@ -106,6 +109,36 @@ func TestExecuteContinuesAfterFailure(t *testing.T) {
 	p = Build("o", "r", &config.Config{Collaborators: &want}, &github.State{Collaborators: map[string]github.Collaborator{}}, f, false)
 	succeeded, failed := p.Execute(context.Background())
 	if len(f.calls) != 2 || len(failed) != 2 || len(succeeded) != 0 {
+		t.Fatalf("calls=%v succeeded=%v failed=%v", f.calls, succeeded, failed)
+	}
+}
+
+func TestCustomPropertiesAreAuthoritativeAndFailuresAreIsolated(t *testing.T) {
+	want := map[string]config.CustomPropertyValue{
+		"editable":    {Value: "new"},
+		"restricted":  {Value: "blocked"},
+		"already_off": {},
+		"unchanged":   {Value: []string{"two", "one"}},
+	}
+	got := map[string]config.CustomPropertyValue{
+		"editable":   {Value: "old"},
+		"restricted": {Value: "old"},
+		"removed":    {Value: []string{"legacy"}},
+		"unchanged":  {Value: []string{"one", "two"}},
+	}
+	f := &fakeExec{fail: map[string]bool{"custom-property:restricted": true}}
+	p := Build("o", "r", &config.Config{CustomProperties: &want}, &github.State{CustomProperties: got}, f, false)
+	if len(p.Changes) != 3 {
+		t.Fatalf("changes = %#v", p.Changes)
+	}
+	wantPaths := []string{"custom_properties.editable", "custom_properties.removed", "custom_properties.restricted"}
+	for i, path := range wantPaths {
+		if p.Changes[i].Path != path {
+			t.Fatalf("change[%d] = %q, want %q", i, p.Changes[i].Path, path)
+		}
+	}
+	succeeded, failed := p.Execute(context.Background())
+	if len(succeeded) != 2 || len(failed) != 1 || failed[0].Path != "custom_properties.restricted" || len(f.calls) != 3 {
 		t.Fatalf("calls=%v succeeded=%v failed=%v", f.calls, succeeded, failed)
 	}
 }

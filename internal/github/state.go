@@ -13,14 +13,15 @@ import (
 )
 
 type State struct {
-	Repository    *config.RepositorySettings
-	Security      *config.SecuritySettings
-	Actions       *config.ActionsSettings
-	Collaborators map[string]Collaborator
-	Teams         map[string]Team
-	Rulesets      map[string]Ruleset
-	Warnings      []string
-	UnknownFields []string
+	Repository       *config.RepositorySettings
+	CustomProperties map[string]config.CustomPropertyValue
+	Security         *config.SecuritySettings
+	Actions          *config.ActionsSettings
+	Collaborators    map[string]Collaborator
+	Teams            map[string]Team
+	Rulesets         map[string]Ruleset
+	Warnings         []string
+	UnknownFields    []string
 }
 
 type Collaborator struct {
@@ -34,9 +35,9 @@ type Ruleset struct {
 }
 
 type ReadScope struct {
-	Repository, Security, Actions, Collaborators, Teams, Rulesets bool
-	SelectedActions                                               bool
-	Verbose                                                       bool
+	Repository, CustomProperties, Security, Actions, Collaborators, Teams, Rulesets bool
+	SelectedActions                                                                 bool
+	Verbose                                                                         bool
 }
 
 func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) (*State, error) {
@@ -81,6 +82,13 @@ func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) 
 		}
 		s.Security = v
 	}
+	if scope.CustomProperties {
+		v, err := c.readCustomProperties(ctx, owner, repo)
+		if err != nil {
+			return nil, fmt.Errorf("read custom properties: %w", err)
+		}
+		s.CustomProperties = v
+	}
 	if scope.Actions {
 		v, err := c.readActions(ctx, owner, repo, scope.SelectedActions)
 		if err != nil {
@@ -111,6 +119,21 @@ func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) 
 	}
 	s.Warnings = append(s.Warnings, c.legacyWarnings(ctx, owner, repo)...)
 	return s, nil
+}
+
+func (c *Client) readCustomProperties(ctx context.Context, owner, repo string) (map[string]config.CustomPropertyValue, error) {
+	var values []struct {
+		PropertyName string                     `json:"property_name"`
+		Value        config.CustomPropertyValue `json:"value"`
+	}
+	if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, "/properties/values"), nil, &values); err != nil {
+		return nil, err
+	}
+	result := make(map[string]config.CustomPropertyValue, len(values))
+	for _, property := range values {
+		result[property.PropertyName] = property.Value
+	}
+	return result, nil
 }
 
 func unknownRepositoryFields(raw map[string]json.RawMessage) []string {

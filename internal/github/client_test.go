@@ -124,6 +124,52 @@ func TestReplaceTopicsSendsEmptyArray(t *testing.T) {
 	}
 }
 
+func TestReadCustomProperties(t *testing.T) {
+	c := testClient(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.EscapedPath() {
+		case "/repos/acme/repo":
+			return response(http.StatusOK, `{"permissions":{"admin":false}}`, make(http.Header)), nil
+		case "/repos/acme/repo/properties/values":
+			return response(http.StatusOK, `[{"property_name":"status","value":"active"},{"property_name":"platforms","value":["linux","macos"]}]`, make(http.Header)), nil
+		case "/repos/acme/repo/branches", "/repos/acme/repo/tags/protection":
+			return response(http.StatusOK, `[]`, make(http.Header)), nil
+		default:
+			t.Fatalf("unexpected request path %s", r.URL.EscapedPath())
+			return nil, nil
+		}
+	})
+	state, err := c.Read(context.Background(), "acme", "repo", ReadScope{CustomProperties: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.CustomProperties["status"].Value != "active" {
+		t.Fatalf("status = %#v", state.CustomProperties["status"].Value)
+	}
+	values, ok := state.CustomProperties["platforms"].Value.([]string)
+	if !ok || len(values) != 2 {
+		t.Fatalf("platforms = %#v", state.CustomProperties["platforms"].Value)
+	}
+}
+
+func TestSetCustomPropertyRequestShape(t *testing.T) {
+	var raw string
+	c := testClient(func(r *http.Request) (*http.Response, error) {
+		if r.Method != http.MethodPatch || r.URL.EscapedPath() != "/repos/acme/repo/properties/values" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.EscapedPath())
+		}
+		b, _ := io.ReadAll(r.Body)
+		raw = string(b)
+		return response(http.StatusNoContent, "", make(http.Header)), nil
+	})
+	value := config.CustomPropertyValue{Value: []string{"linux", "macos"}}
+	if err := c.SetCustomProperty(context.Background(), "acme", "repo", "platforms", value); err != nil {
+		t.Fatal(err)
+	}
+	if raw != `{"properties":[{"property_name":"platforms","value":["linux","macos"]}]}` {
+		t.Fatalf("body = %s", raw)
+	}
+}
+
 func TestPermissionNormalization(t *testing.T) {
 	for in, want := range map[string]string{"read": "pull", "write": "push", "maintain": "maintain", "security-manager": "custom:security-manager"} {
 		if got := permission(in, nil); got != want {

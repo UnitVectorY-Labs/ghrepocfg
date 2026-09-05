@@ -19,6 +19,12 @@ func (c *Client) ReplaceTopics(ctx context.Context, owner, repo string, topics [
 	return err
 }
 
+func (c *Client) SetCustomProperty(ctx context.Context, owner, repo, name string, value config.CustomPropertyValue) error {
+	body := map[string]any{"properties": []map[string]any{{"property_name": name, "value": value.Value}}}
+	_, err := c.request(ctx, http.MethodPatch, repoPath(owner, repo, "/properties/values"), body, nil)
+	return err
+}
+
 func (c *Client) UpdateSecurityAnalysis(ctx context.Context, owner, repo string, body map[string]any) error {
 	_, err := c.request(ctx, http.MethodPatch, repoPath(owner, repo, ""), map[string]any{"security_and_analysis": body}, nil)
 	return err

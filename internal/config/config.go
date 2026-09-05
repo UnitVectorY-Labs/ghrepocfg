@@ -3,6 +3,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,13 +17,70 @@ import (
 // Config is the complete v1 configuration. A nil section is unmanaged, while
 // a present collection (including an empty one) is authoritative.
 type Config struct {
-	Repository    *RepositorySettings `yaml:"repository,omitempty" json:"repository,omitempty"`
-	Security      *SecuritySettings   `yaml:"security,omitempty" json:"security,omitempty"`
-	Actions       *ActionsSettings    `yaml:"actions,omitempty" json:"actions,omitempty"`
-	Collaborators *map[string]Access  `yaml:"collaborators,omitempty" json:"collaborators,omitempty"`
-	Teams         *map[string]Access  `yaml:"teams,omitempty" json:"teams,omitempty"`
-	Rulesets      *map[string]Ruleset `yaml:"rulesets,omitempty" json:"rulesets,omitempty"`
+	Repository       *RepositorySettings             `yaml:"repository,omitempty" json:"repository,omitempty"`
+	CustomProperties *map[string]CustomPropertyValue `yaml:"custom_properties,omitempty" json:"custom_properties,omitempty"`
+	Security         *SecuritySettings               `yaml:"security,omitempty" json:"security,omitempty"`
+	Actions          *ActionsSettings                `yaml:"actions,omitempty" json:"actions,omitempty"`
+	Collaborators    *map[string]Access              `yaml:"collaborators,omitempty" json:"collaborators,omitempty"`
+	Teams            *map[string]Access              `yaml:"teams,omitempty" json:"teams,omitempty"`
+	Rulesets         *map[string]Ruleset             `yaml:"rulesets,omitempty" json:"rulesets,omitempty"`
 }
+
+// CustomPropertyValue is a repository custom-property value. GitHub supports
+// strings, arrays of strings for multi-select properties, and null to unset a
+// value.
+type CustomPropertyValue struct {
+	Value any
+}
+
+func (v *CustomPropertyValue) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		if node.Tag == "!!null" {
+			v.Value = nil
+			return nil
+		}
+		if node.Tag != "!!str" {
+			return errors.New("custom property value must be a string, an array of strings, or null; quote boolean-looking values")
+		}
+		v.Value = node.Value
+		return nil
+	case yaml.SequenceNode:
+		values := make([]string, len(node.Content))
+		for i, item := range node.Content {
+			if item.Kind != yaml.ScalarNode || item.Tag != "!!str" {
+				return errors.New("custom property array value must contain only strings")
+			}
+			values[i] = item.Value
+		}
+		v.Value = values
+		return nil
+	default:
+		return errors.New("custom property value must be a string, an array of strings, or null")
+	}
+}
+
+func (v CustomPropertyValue) MarshalYAML() (any, error) { return v.Value, nil }
+
+func (v *CustomPropertyValue) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		v.Value = nil
+		return nil
+	}
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		v.Value = text
+		return nil
+	}
+	var list []string
+	if err := json.Unmarshal(data, &list); err == nil {
+		v.Value = list
+		return nil
+	}
+	return errors.New("custom property value must be a string, an array of strings, or null")
+}
+
+func (v CustomPropertyValue) MarshalJSON() ([]byte, error) { return json.Marshal(v.Value) }
 
 // RepositorySettings contains safe, mutable fields accepted by GitHub's
 // Update a repository endpoint. Identity, visibility, archive state, and other
@@ -266,8 +324,15 @@ func rejectIntentionallyUnmanaged(b []byte) error {
 }
 
 func (c *Config) Validate() error {
-	if c.Repository == nil && c.Security == nil && c.Actions == nil && c.Collaborators == nil && c.Teams == nil && c.Rulesets == nil {
+	if c.Repository == nil && c.CustomProperties == nil && c.Security == nil && c.Actions == nil && c.Collaborators == nil && c.Teams == nil && c.Rulesets == nil {
 		return errors.New("invalid configuration: at least one managed section is required")
+	}
+	if c.CustomProperties != nil {
+		for name := range *c.CustomProperties {
+			if strings.TrimSpace(name) == "" {
+				return errors.New("invalid configuration: custom_properties contains an empty name")
+			}
+		}
 	}
 	validPermission := func(p string) bool {
 		return p == "pull" || p == "triage" || p == "push" || p == "maintain" || p == "admin" || strings.HasPrefix(p, "custom:")
