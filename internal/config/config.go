@@ -17,6 +17,11 @@ import (
 // Config is the complete v1 configuration. A nil section is unmanaged, while
 // a present collection (including an empty one) is authoritative.
 type Config struct {
+	Environments     *map[string]Environment         `yaml:"environments,omitempty" json:"environments,omitempty"`
+	Pages            *PagesSettings                  `yaml:"pages,omitempty" json:"pages,omitempty"`
+	Labels           *map[string]Label               `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Autolinks        *map[string]Autolink            `yaml:"autolinks,omitempty" json:"autolinks,omitempty"`
+	DeployKeys       *map[string]DeployKey           `yaml:"deploy_keys,omitempty" json:"deploy_keys,omitempty"`
 	Repository       *RepositorySettings             `yaml:"repository,omitempty" json:"repository,omitempty"`
 	CustomProperties *map[string]CustomPropertyValue `yaml:"custom_properties,omitempty" json:"custom_properties,omitempty"`
 	Security         *SecuritySettings               `yaml:"security,omitempty" json:"security,omitempty"`
@@ -82,10 +87,11 @@ func (v *CustomPropertyValue) UnmarshalJSON(data []byte) error {
 
 func (v CustomPropertyValue) MarshalJSON() ([]byte, error) { return json.Marshal(v.Value) }
 
-// RepositorySettings contains safe, mutable fields accepted by GitHub's
-// Update a repository endpoint. Identity, visibility, archive state, and other
-// destructive fields are intentionally absent.
+// RepositorySettings contains repository configuration. Most fields use the
+// Update a repository endpoint; immutable releases uses its dedicated endpoint.
+// Identity, visibility, and archive state are intentionally absent.
 type RepositorySettings struct {
+	ImmutableReleases         *bool     `yaml:"immutable_releases,omitempty" json:"immutable_releases,omitempty"`
 	Description               *string   `yaml:"description,omitempty" json:"description,omitempty"`
 	Homepage                  *string   `yaml:"homepage,omitempty" json:"homepage,omitempty"`
 	HasIssues                 *bool     `yaml:"has_issues,omitempty" json:"has_issues,omitempty"`
@@ -113,6 +119,8 @@ type RepositorySettings struct {
 }
 
 type SecuritySettings struct {
+	PrivateVulnerabilityReporting         *bool                   `yaml:"private_vulnerability_reporting,omitempty" json:"private_vulnerability_reporting,omitempty"`
+	CodeScanningDefaultSetup              *CodeScanningSetup      `yaml:"code_scanning_default_setup,omitempty" json:"code_scanning_default_setup,omitempty"`
 	VulnerabilityAlerts                   *bool                   `yaml:"vulnerability_alerts,omitempty" json:"vulnerability_alerts,omitempty"`
 	AutomatedSecurityFixes                *bool                   `yaml:"automated_security_fixes,omitempty" json:"automated_security_fixes,omitempty"`
 	AdvancedSecurity                      *FeatureStatus          `yaml:"advanced_security,omitempty" json:"advanced_security,omitempty"`
@@ -141,11 +149,19 @@ type BypassReviewer struct {
 }
 
 type ActionsSettings struct {
-	Enabled                      *bool            `yaml:"enabled,omitempty" json:"enabled,omitempty"`
-	AllowedActions               *string          `yaml:"allowed_actions,omitempty" json:"allowed_actions,omitempty"`
-	SelectedActions              *SelectedActions `yaml:"selected_actions,omitempty" json:"selected_actions,omitempty"`
-	DefaultWorkflowPermissions   *string          `yaml:"default_workflow_permissions,omitempty" json:"default_workflow_permissions,omitempty"`
-	CanApprovePullRequestReviews *bool            `yaml:"can_approve_pull_request_reviews,omitempty" json:"can_approve_pull_request_reviews,omitempty"`
+	SHAPinningRequired           *bool                 `yaml:"sha_pinning_required,omitempty" json:"sha_pinning_required,omitempty"`
+	ArtifactAndLogRetentionDays  *int                  `yaml:"artifact_and_log_retention_days,omitempty" json:"artifact_and_log_retention_days,omitempty"`
+	ForkPRContributorApproval    *string               `yaml:"fork_pr_contributor_approval,omitempty" json:"fork_pr_contributor_approval,omitempty"`
+	PrivateForkWorkflows         *PrivateForkWorkflows `yaml:"private_fork_workflows,omitempty" json:"private_fork_workflows,omitempty"`
+	AccessLevel                  *string               `yaml:"access_level,omitempty" json:"access_level,omitempty"`
+	OIDC                         *OIDCSettings         `yaml:"oidc,omitempty" json:"oidc,omitempty"`
+	Cache                        *CacheSettings        `yaml:"cache,omitempty" json:"cache,omitempty"`
+	Variables                    *map[string]string    `yaml:"variables,omitempty" json:"variables,omitempty"`
+	Enabled                      *bool                 `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	AllowedActions               *string               `yaml:"allowed_actions,omitempty" json:"allowed_actions,omitempty"`
+	SelectedActions              *SelectedActions      `yaml:"selected_actions,omitempty" json:"selected_actions,omitempty"`
+	DefaultWorkflowPermissions   *string               `yaml:"default_workflow_permissions,omitempty" json:"default_workflow_permissions,omitempty"`
+	CanApprovePullRequestReviews *bool                 `yaml:"can_approve_pull_request_reviews,omitempty" json:"can_approve_pull_request_reviews,omitempty"`
 }
 
 type SelectedActions struct {
@@ -324,7 +340,10 @@ func rejectIntentionallyUnmanaged(b []byte) error {
 }
 
 func (c *Config) Validate() error {
-	if c.Repository == nil && c.CustomProperties == nil && c.Security == nil && c.Actions == nil && c.Collaborators == nil && c.Teams == nil && c.Rulesets == nil {
+	if err := c.validateAdditional(); err != nil {
+		return err
+	}
+	if c.Repository == nil && c.CustomProperties == nil && c.Security == nil && c.Actions == nil && c.Collaborators == nil && c.Teams == nil && c.Rulesets == nil && c.Environments == nil && c.Pages == nil && c.Labels == nil && c.Autolinks == nil && c.DeployKeys == nil {
 		return errors.New("invalid configuration: at least one managed section is required")
 	}
 	if c.CustomProperties != nil {

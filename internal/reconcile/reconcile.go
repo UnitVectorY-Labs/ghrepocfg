@@ -17,9 +17,10 @@ import (
 type Operation string
 
 const (
-	Add    Operation = "add"
-	Remove Operation = "remove"
-	Modify Operation = "modify"
+	Add     Operation = "add"
+	Remove  Operation = "remove"
+	Modify  Operation = "modify"
+	Replace Operation = "replace"
 )
 
 type Change struct {
@@ -39,6 +40,8 @@ type Plan struct {
 }
 
 type Executor interface {
+	Mutate(context.Context, string, string, string, string, any) error
+	SetEnvironment(context.Context, string, string, string, config.Environment) error
 	UpdateRepository(context.Context, string, string, map[string]any) error
 	ReplaceTopics(context.Context, string, string, []string) error
 	SetCustomProperty(context.Context, string, string, string, config.CustomPropertyValue) error
@@ -90,6 +93,7 @@ func Build(owner, repo string, desired *config.Config, current *github.State, ex
 	} else if verbose {
 		p.Unmanaged = append(p.Unmanaged, "teams")
 	}
+	additionalChanges(p, owner, repo, desired, current, exec)
 	if desired.Rulesets != nil {
 		rulesetChanges(p, owner, repo, *desired.Rulesets, current.Rulesets, exec)
 	} else if verbose {
@@ -159,6 +163,9 @@ func repositoryChanges(p *Plan, owner, repo string, want, got *config.Repository
 		}
 		b := indirect(before)
 		a := indirect(after)
+		if tag == "immutable_releases" {
+			continue
+		}
 		if tag == "topics" {
 			source := a.([]string)
 			topics := make([]string, len(source))
@@ -189,7 +196,7 @@ func securityChanges(p *Plan, owner, repo string, want, got *config.SecuritySett
 			continue
 		}
 		tag := strings.Split(typ.Field(i).Tag.Get("json"), ",")[0]
-		if tag == "vulnerability_alerts" || tag == "automated_security_fixes" {
+		if tag == "vulnerability_alerts" || tag == "automated_security_fixes" || tag == "private_vulnerability_reporting" || tag == "code_scanning_default_setup" {
 			continue
 		}
 		if valuesEqual(wv.Field(i).Interface(), gv.Field(i).Interface()) {
@@ -206,7 +213,13 @@ func securityChanges(p *Plan, owner, repo string, want, got *config.SecuritySett
 
 func actionsChanges(p *Plan, owner, repo string, want, got *config.ActionsSettings, e Executor) {
 	permissions := map[string]any{}
+	if want.SHAPinningRequired != nil && !valuesEqual(want.SHAPinningRequired, got.SHAPinningRequired) {
+		permissions["sha_pinning_required"] = *want.SHAPinningRequired
+	}
 	var beforePerm = map[string]any{}
+	if _, ok := permissions["sha_pinning_required"]; ok {
+		beforePerm["sha_pinning_required"] = indirect(got.SHAPinningRequired)
+	}
 	if want.Enabled != nil && !valuesEqual(want.Enabled, got.Enabled) {
 		permissions["enabled"] = *want.Enabled
 		beforePerm["enabled"] = indirect(got.Enabled)
@@ -216,6 +229,9 @@ func actionsChanges(p *Plan, owner, repo string, want, got *config.ActionsSettin
 		beforePerm["allowed_actions"] = indirect(got.AllowedActions)
 	}
 	if len(permissions) > 0 {
+		if _, ok := permissions["enabled"]; !ok && got.Enabled != nil {
+			permissions["enabled"] = *got.Enabled
+		}
 		body := permissions
 		add(p, Change{Modify, "actions.permissions", beforePerm, body, func(ctx context.Context) error { return e.SetActionsPermissions(ctx, owner, repo, body) }})
 	}

@@ -37,6 +37,11 @@ Unknown keys at every modeled level are errors. Empty strings, `false`, `0`, `[]
 | `actions` | object | Each present field is managed independently |
 | `collaborators` | map keyed by GitHub login | Present map is authoritative |
 | `teams` | map keyed by organization team slug | Present map is authoritative |
+| `environments` | map keyed by environment name | Authoritative environment membership; omitted fields within a retained environment are unmanaged |
+| `pages` | object | Site settings; `enabled: false` removes the site |
+| `labels` | map keyed by label name | Authoritative label definitions |
+| `autolinks` | map keyed by prefix | Authoritative autolink definitions |
+| `deploy_keys` | map keyed by unique title | Authoritative public deploy keys |
 | `rulesets` | map keyed by unique ruleset name | Present map is authoritative for repository-owned rulesets |
 
 ## Repository
@@ -66,6 +71,7 @@ Unknown keys at every modeled level are errors. Empty strings, `false`, `0`, `[]
 | `merge_commit_message` | `PR_TITLE`, `PR_BODY`, `BLANK` | Default merge-commit message |
 | `web_commit_signoff_required` | boolean | Require signoff for web commits |
 | `allow_forking` | boolean | Allow private-repository forking |
+| `immutable_releases` | boolean | Enable release immutability through its dedicated API; owner policy can prevent changes |
 | `topics` | array of strings | Complete desired topic set |
 
 Repository `name`, `owner`, `private`, `visibility`, and `archived` are intentionally invalid. Repository deletion and transfer have no configuration representation. `has_downloads` is recognized in GitHub responses but is not a supported current update field.
@@ -100,7 +106,8 @@ Boolean settings:
 | Key | Description |
 |---|---|
 | `vulnerability_alerts` | Dependabot vulnerability alerts |
-| `automated_security_fixes` | Dependabot security updates |
+| `automated_security_fixes` | Dependabot security updates; reads the API's `enabled` value, not its HTTP success status |
+| `private_vulnerability_reporting` | Allow private vulnerability submissions |
 
 The following features use an object with `status: enabled` or `status: disabled`:
 
@@ -123,10 +130,39 @@ The following features use an object with `status: enabled` or `status: disabled
 
 Reviewer IDs are organization-specific and are an unavoidable portability exception. GitHub licensing and organization policy determine which fields are available.
 
+### Code Scanning Default Setup
+
+`security.code_scanning_default_setup` configures GitHub's default CodeQL setup:
+
+| Key | Type or Values |
+|---|---|
+| `state` | `configured`, `not-configured` |
+| `languages` | Array of GitHub CodeQL language identifiers, such as `go` |
+| `query_suite` | `default`, `extended` |
+| `threat_model` | `remote`, `remote_and_local` |
+| `runner_type` | `standard`, `labeled` |
+| `runner_label` | String identifying a self-hosted runner label |
+
+Omitted fields remain unmanaged. Setup changes can be asynchronous; rerun dry-run after GitHub finishes configuring the scanner. Code Security must already be available before explicitly managing this section. Disabling setup requires only `state: not-configured`, without other scanner settings. The API's read-only schedule and update timestamp are not YAML settings.
+
 ## Actions
 
 | Key | Type or Values |
 |---|---|
+| `sha_pinning_required` | boolean |
+| `artifact_and_log_retention_days` | positive integer |
+| `fork_pr_contributor_approval` | `first_time_contributors_new_to_github`, `first_time_contributors`, `all_external_contributors` |
+| `access_level` | `none`, `user`, `organization`, `enterprise`, subject to GitHub's repository/owner restrictions |
+| `private_fork_workflows.run_workflows_from_fork_pull_requests` | boolean |
+| `private_fork_workflows.send_write_tokens_to_workflows` | boolean |
+| `private_fork_workflows.send_secrets_and_variables` | boolean |
+| `private_fork_workflows.require_approval_for_fork_pr_workflows` | boolean |
+| `oidc.use_default` | boolean |
+| `oidc.include_claim_keys` | ordered array of OIDC subject claim keys; use with `use_default: false` |
+| `oidc.use_immutable_subject` | boolean |
+| `cache.max_retention_days` | positive integer |
+| `cache.max_size_gb` | positive integer |
+| `variables` | authoritative map of variable names to string values |
 | `enabled` | boolean |
 | `allowed_actions` | `all`, `local_only`, `selected` |
 | `selected_actions.github_owned_allowed` | boolean |
@@ -136,6 +172,54 @@ Reviewer IDs are organization-specific and are an unavoidable portability except
 | `can_approve_pull_request_reviews` | boolean |
 
 GitHub returns `409 Conflict` when selected-action details are read while selected actions are inactive. Full export therefore includes `selected_actions` only when the live policy is `selected`.
+
+## Environments
+
+`environments` is keyed by environment name. Environment names are compared without case sensitivity. An empty map deletes all environments returned by GitHub. Deleting an environment also deletes its associated configuration, including secrets that ghrepocfg cannot export. Within a retained environment, omitted fields and variables remain unchanged.
+
+| Key | Type or Values |
+|---|---|
+| `wait_timer` | Minutes, 0 through 43200; 0 removes the delay |
+| `prevent_self_review` | boolean |
+| `reviewers` | Up to six `{type: User or Team, id: integer}` entries; `[]` clears reviewers |
+| `deployment_branch_policy.protected_branches` | boolean |
+| `deployment_branch_policy.custom_branch_policies` | boolean |
+| `deployment_branch_patterns` | Authoritative array of allowed branch patterns |
+| `deployment_tag_patterns` | Authoritative array of allowed tag patterns |
+| `variables` | Authoritative map of variable names to string values |
+
+The policy flags cannot both be true. Both false means unrestricted deployment branches. Patterns require custom branch policies; creating an environment with patterns and no explicit policy selects custom policies. Switching away from custom policies stops managing their patterns. Reviewers refer to existing numeric user/team IDs. Reviewers and wait timers depend on GitHub plan and visibility.
+
+Environment updates preserve omitted protection settings. Creation precedes policy and variable requests. One environment is one planned operation; a child request failure can leave earlier steps applied. Custom deployment protection integrations are outside this schema and are not removed from retained environments.
+
+## Variables
+
+Actions and environment variables contain readable string values. Quote numeric and boolean-looking values. Names use letters, digits, and underscores, cannot start with a digit or `GITHUB_`, and are compared without case sensitivity. Empty maps delete the respective variable collection. Secrets and organization-level variables are not managed.
+
+## Pages
+
+| Key | Type or Values |
+|---|---|
+| `enabled` | boolean; `false` deletes the Pages site |
+| `build_type` | `workflow` or `legacy` |
+| `source.branch` | Existing source branch for legacy publishing |
+| `source.path` | `/` or `/docs` |
+| `cname` | Custom domain; `""` removes it |
+| `https_enforced` | boolean |
+
+Site settings imply that a site should exist. `enabled: true` without publishing settings creates a workflow-based site. `enabled: false` must appear without other Pages settings. Workflow definitions, content, DNS records, and certificate provisioning are not managed. A missing site exports as `enabled: false`; administration visibility is required. HTTPS/domain changes may need GitHub's asynchronous provisioning to complete.
+
+## Labels, Autolinks, and Deploy Keys
+
+| Collection | Map key | Entry fields |
+|---|---|---|
+| `labels` | Label name | `color`: six hexadecimal digits without `#`; `description`: string |
+| `autolinks` | Key prefix, e.g. `ENG-` | `url_template`: URL containing `<num>`; `is_alphanumeric`: boolean |
+| `deploy_keys` | Unique title | `key`: SSH public key; `read_only`: boolean |
+
+These maps are authoritative, including `{}`. Set `read_only: true` explicitly for read-only deploy keys; false grants write access. Private key material is never read or generated by ghrepocfg. SSH public-key comments do not cause drift. Label names and colors compare without case sensitivity. Duplicate label or environment names differing only in case are rejected.
+
+Autolinks and deploy keys have no update API. Plans mark changed entries as `replace` (delete then create); if deletion fails, creation is not attempted. If creation fails after deletion, rerun after correcting the error. Duplicate live deploy-key titles or autolink prefixes prevent authoritative export and apply because YAML cannot identify them uniquely.
 
 ## Collaborators
 
@@ -147,7 +231,7 @@ The collection includes active direct collaborators and pending invitations. It 
 
 `teams` is keyed by organization team slug. `permission` accepts the same built-in or `custom:ROLE NAME` values as collaborators.
 
-The present map is authoritative for repository team associations returned by GitHub. Parent-team or organization policy may prevent effective removal; GitHub reports such conflicts as mutation failures.
+The present map is authoritative for direct organization-team repository associations. Teams marked with organization/enterprise access sources and enterprise-owned teams are excluded. Older responses without provenance retain the existing organization-team behavior. Parent-team or organization policy may prevent effective removal; GitHub reports such conflicts as mutation failures.
 
 ## Rulesets
 

@@ -81,3 +81,21 @@ Legacy branch or tag protection is present but unmanaged. Review it directly in 
 ## Unknown YAML Key
 
 Unknown keys are intentionally fatal. Check spelling and compare the key with [Configuration Reference](CONFIGURATION.md). Visibility, archive, identity, and secrets keys produce specific errors because they are intentionally out of scope.
+
+## Additional Settings Are Omitted from Full Export
+
+Read the warning accompanying the omitted group. Public-fork approval policy is unavailable for private repositories; private vulnerability reporting, CodeQL setup, and deployment protections depend on visibility, licensing, and owner policy. Full discovery omits unavailable groups, but an existing YAML section requests an authoritative read and therefore fails instead. Remove a section only when you intend to stop managing it.
+
+An owner may forbid a private-fork workflow policy change with `422` even though its GET endpoint is readable. The application reports the failure and continues independent changes. It never changes organization policy to bypass the restriction.
+
+## A Replacement or Environment Change Partially Failed
+
+Autolinks and deploy keys require delete-then-create replacement. Environment operations create/update the environment before changing branch/tag policies and variables. A later failure does not roll back earlier API calls. Correct the reported error and rerun dry-run; live state determines the remaining work.
+
+## Cache Limit Write Is Accepted but Does Not Take Effect
+
+GitHub can return success for a cache-limit update while the GET endpoint still returns another effective value. ghrepocfg reads cache limits back after writing and reports a failure if they do not match. Recheck the repository and owner policy and rerun dry-run; do not assume HTTP success means the requested limit took effect. During live validation, requesting three retention days returned success but continued reporting seven; the API responses did not establish the underlying cause.
+
+## Private Actions Policies on a Public Repository
+
+Full export automatically omits `actions.private_fork_workflows` and `actions.access_level` for public repositories without warnings. If a configuration copied from a private repository includes those fields, remove them before applying or refreshing that scoped configuration against a public repository. These policies do not apply there; the application reports this before calling their endpoints.

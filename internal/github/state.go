@@ -13,6 +13,10 @@ import (
 )
 
 type State struct {
+	Visibility       string // Observed metadata, never a managed setting.
+	Additional       config.Config
+	AutolinkIDs      map[string]int64
+	DeployKeyIDs     map[string]int64
 	Repository       *config.RepositorySettings
 	CustomProperties map[string]config.CustomPropertyValue
 	Security         *config.SecuritySettings
@@ -35,6 +39,8 @@ type Ruleset struct {
 }
 
 type ReadScope struct {
+	Full                                                                            bool
+	Desired                                                                         *config.Config
 	Repository, CustomProperties, Security, Actions, Collaborators, Teams, Rulesets bool
 	SelectedActions                                                                 bool
 	Verbose                                                                         bool
@@ -47,7 +53,22 @@ func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) 
 	if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, ""), nil, &raw); err != nil {
 		return nil, err
 	}
+	var metadata struct {
+		Visibility string `json:"visibility"`
+		Private    *bool  `json:"private"`
+	}
 	b, _ := json.Marshal(raw)
+	if err := json.Unmarshal(b, &metadata); err != nil {
+		return nil, err
+	}
+	s.Visibility = metadata.Visibility
+	if s.Visibility == "" && metadata.Private != nil {
+		if *metadata.Private {
+			s.Visibility = "private"
+		} else {
+			s.Visibility = "public"
+		}
+	}
 	var repositoryState config.RepositorySettings
 	if err := json.Unmarshal(b, &repositoryState); err != nil {
 		return nil, err
@@ -72,7 +93,11 @@ func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) 
 	if value, ok := raw["permissions"]; ok {
 		_ = json.Unmarshal(value, &permissions)
 	}
-	if (scope.Security || scope.Collaborators || scope.Teams || scope.Rulesets) && !permissions.Admin {
+	additionalAdmin := scope.Full
+	if d := scope.Desired; d != nil {
+		additionalAdmin = d.Environments != nil || d.Pages != nil || d.Autolinks != nil || d.DeployKeys != nil || (d.Repository != nil && d.Repository.ImmutableReleases != nil)
+	}
+	if (scope.Security || scope.Collaborators || scope.Teams || scope.Rulesets || additionalAdmin) && !permissions.Admin {
 		return nil, fmt.Errorf("repository admin access is required to safely read managed security, access, and ruleset state")
 	}
 	if scope.Security {
@@ -117,6 +142,9 @@ func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) 
 		}
 		s.Rulesets = v
 	}
+	if err := c.readAdditional(ctx, owner, repo, scope, s); err != nil {
+		return nil, err
+	}
 	s.Warnings = append(s.Warnings, c.legacyWarnings(ctx, owner, repo)...)
 	return s, nil
 }
@@ -160,7 +188,12 @@ func (c *Client) readSecurity(ctx context.Context, owner, repo string, analysisR
 	if err != nil {
 		return nil, err
 	}
-	fixes, err := c.booleanEndpoint(ctx, repoPath(owner, repo, "/automated-security-fixes"))
+	var fixesState struct {
+		Enabled bool `json:"enabled"`
+		Paused  bool `json:"paused"`
+	}
+	_, err = c.request(ctx, http.MethodGet, repoPath(owner, repo, "/automated-security-fixes"), nil, &fixesState)
+	fixes := fixesState.Enabled
 	if err != nil {
 		return nil, err
 	}
@@ -184,13 +217,14 @@ func (c *Client) booleanEndpoint(ctx context.Context, path string) (bool, error)
 
 func (c *Client) readActions(ctx context.Context, owner, repo string, readSelected bool) (*config.ActionsSettings, error) {
 	var permissions struct {
-		Enabled        bool   `json:"enabled"`
-		AllowedActions string `json:"allowed_actions"`
+		Enabled            bool   `json:"enabled"`
+		AllowedActions     string `json:"allowed_actions"`
+		SHAPinningRequired *bool  `json:"sha_pinning_required"`
 	}
 	if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, "/actions/permissions"), nil, &permissions); err != nil {
 		return nil, err
 	}
-	v := &config.ActionsSettings{Enabled: &permissions.Enabled, AllowedActions: &permissions.AllowedActions}
+	v := &config.ActionsSettings{Enabled: &permissions.Enabled, AllowedActions: &permissions.AllowedActions, SHAPinningRequired: permissions.SHAPinningRequired}
 	if permissions.AllowedActions == "selected" || readSelected {
 		var selected config.SelectedActions
 		if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, "/actions/permissions/selected-actions"), nil, &selected); err != nil {
@@ -211,8 +245,9 @@ func (c *Client) readActions(ctx context.Context, owner, repo string, readSelect
 
 func (c *Client) readCollaborators(ctx context.Context, owner, repo string) (map[string]Collaborator, error) {
 	var users []struct {
-		Login, RoleName string
-		Permissions     map[string]bool
+		Login       string
+		RoleName    string `json:"role_name"`
+		Permissions map[string]bool
 	}
 	if err := c.paged(ctx, repoPath(owner, repo, "/collaborators?affiliation=direct"), &users); err != nil {
 		return nil, err
@@ -265,6 +300,8 @@ func permission(role string, p map[string]bool) string {
 func (c *Client) readTeams(ctx context.Context, owner, repo string) (map[string]Team, error) {
 	var teams []struct {
 		Slug, Permission string
+		AccessSource     string `json:"access_source"`
+		Type             string `json:"type"`
 		Permissions      map[string]bool
 	}
 	if err := c.paged(ctx, repoPath(owner, repo, "/teams"), &teams); err != nil {
@@ -272,6 +309,9 @@ func (c *Client) readTeams(ctx context.Context, owner, repo string) (map[string]
 	}
 	result := make(map[string]Team, len(teams))
 	for _, t := range teams {
+		if (t.AccessSource != "" && t.AccessSource != "direct") || t.Type == "enterprise" {
+			continue
+		}
 		result[strings.ToLower(t.Slug)] = Team{Permission: permission(t.Permission, t.Permissions)}
 	}
 	return result, nil
