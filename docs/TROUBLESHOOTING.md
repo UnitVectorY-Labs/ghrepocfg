@@ -95,3 +95,7 @@ Autolinks and deploy keys require delete-then-create replacement. Environment op
 ## Cache Limit Write Is Accepted but Does Not Take Effect
 
 GitHub can return success for a cache-limit update while the GET endpoint still returns another effective value. ghrepocfg reads cache limits back after writing and reports a failure if they do not match. Recheck the repository and owner policy and rerun dry-run; do not assume HTTP success means the requested limit took effect. During live validation, requesting three retention days returned success but continued reporting seven; the API responses did not establish the underlying cause.
+
+## Private Actions Policies on a Public Repository
+
+Full export automatically omits `actions.private_fork_workflows` and `actions.access_level` for public repositories without warnings. If a configuration copied from a private repository includes those fields, remove them before applying or refreshing that scoped configuration against a public repository. These policies do not apply there; the application reports this before calling their endpoints.

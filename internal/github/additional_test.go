@@ -172,3 +172,71 @@ func TestEnvironmentPatternsRequireEffectiveCustomPolicy(t *testing.T) {
 		t.Fatal("patterns silently ignored")
 	}
 }
+
+func TestPublicRepositorySkipsPrivateActionsPolicies(t *testing.T) {
+	for _, visibility := range []string{"public", "private", "internal", ""} {
+		t.Run(visibility, func(t *testing.T) {
+			calls := map[string]int{}
+			c := testClient(func(r *http.Request) (*http.Response, error) {
+				calls[r.URL.Path]++
+				switch r.URL.Path {
+				case "/repos/o/r/actions/permissions/fork-pr-workflows-private-repos":
+					return response(200, `{"run_workflows_from_fork_pull_requests":false}`, nil), nil
+				case "/repos/o/r/actions/permissions/access":
+					return response(200, `{"access_level":"none"}`, nil), nil
+				default:
+					return response(403, `{"message":"unavailable"}`, nil), nil
+				}
+			})
+			s := &State{Visibility: visibility, Repository: &config.RepositorySettings{}}
+			if err := c.readAdditional(context.Background(), "o", "r", ReadScope{Full: true}, s); err != nil {
+				t.Fatal(err)
+			}
+			for _, suffix := range []string{"fork-pr-workflows-private-repos", "access"} {
+				got := calls["/repos/o/r/actions/permissions/"+suffix]
+				if visibility == "public" && got != 0 || visibility != "public" && got != 1 {
+					t.Fatalf("visibility=%q endpoint=%s calls=%d", visibility, suffix, got)
+				}
+			}
+			if visibility == "public" {
+				if s.Actions.PrivateForkWorkflows != nil || s.Actions.AccessLevel != nil {
+					t.Fatal("inapplicable settings exported")
+				}
+				for _, w := range s.Warnings {
+					if strings.Contains(w, "actions.private_fork_workflows") || strings.Contains(w, "actions.access_level") {
+						t.Fatalf("unexpected warning: %s", w)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestExplicitPublicPrivateActionsPoliciesFailBeforeRequest(t *testing.T) {
+	level := "none"
+	for _, actions := range []*config.ActionsSettings{{PrivateForkWorkflows: &config.PrivateForkWorkflows{}}, {AccessLevel: &level}} {
+		c := testClient(func(r *http.Request) (*http.Response, error) {
+			t.Fatalf("unexpected request: %s", r.URL)
+			return nil, nil
+		})
+		err := c.readAdditional(context.Background(), "o", "r", ReadScope{Desired: &config.Config{Actions: actions}}, &State{Visibility: "public"})
+		if err == nil || !strings.Contains(err.Error(), "does not apply to public repositories") {
+			t.Fatalf("error=%v", err)
+		}
+	}
+}
+
+func TestReadRepositoryVisibility(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{{`{"visibility":"public"}`, "public"}, {`{"visibility":"internal","private":true}`, "internal"}, {`{"private":false}`, "public"}, {`{"private":true}`, "private"}, {`{}`, ""}} {
+		c := testClient(func(r *http.Request) (*http.Response, error) {
+			if r.URL.Path == "/repos/o/r" {
+				return response(200, tc.body, nil), nil
+			}
+			return response(200, `[]`, nil), nil
+		})
+		s, err := c.Read(context.Background(), "o", "r", ReadScope{})
+		if err != nil || s.Visibility != tc.want {
+			t.Fatalf("body=%s state=%+v err=%v", tc.body, s, err)
+		}
+	}
+}

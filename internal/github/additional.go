@@ -87,6 +87,12 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 		if !scope.Full && !wanted {
 			return nil
 		}
+		if s.Visibility == "public" && (name == "actions.private_fork_workflows" || name == "actions.access_level") {
+			if scope.Full {
+				return nil
+			}
+			return fmt.Errorf("%s does not apply to public repositories; remove this field from the configuration", name)
+		}
 		err := fn()
 		if scope.Full && (IsStatus(err, 403) || IsStatus(err, 404) || IsStatus(err, 409) || IsStatus(err, 422)) {
 			s.Warnings = append(s.Warnings, fmt.Sprintf("%s unavailable; omitted from export: %v", name, err))

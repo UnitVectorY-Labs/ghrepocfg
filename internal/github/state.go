@@ -13,6 +13,7 @@ import (
 )
 
 type State struct {
+	Visibility       string // Observed metadata, never a managed setting.
 	Additional       config.Config
 	AutolinkIDs      map[string]int64
 	DeployKeyIDs     map[string]int64
@@ -52,7 +53,22 @@ func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) 
 	if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, ""), nil, &raw); err != nil {
 		return nil, err
 	}
+	var metadata struct {
+		Visibility string `json:"visibility"`
+		Private    *bool  `json:"private"`
+	}
 	b, _ := json.Marshal(raw)
+	if err := json.Unmarshal(b, &metadata); err != nil {
+		return nil, err
+	}
+	s.Visibility = metadata.Visibility
+	if s.Visibility == "" && metadata.Private != nil {
+		if *metadata.Private {
+			s.Visibility = "private"
+		} else {
+			s.Visibility = "public"
+		}
+	}
 	var repositoryState config.RepositorySettings
 	if err := json.Unmarshal(b, &repositoryState); err != nil {
 		return nil, err
