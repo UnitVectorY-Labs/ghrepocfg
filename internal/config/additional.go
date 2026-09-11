@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+var (
+	labelColorPattern   = regexp.MustCompile(`^[0-9a-fA-F]{6}$`)
+	variableNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+)
+
 type CodeScanningSetup struct {
 	State       *string   `yaml:"state,omitempty" json:"state,omitempty"`
 	Languages   *[]string `yaml:"languages,omitempty" json:"languages,omitempty"`
@@ -208,7 +213,7 @@ func (c *Config) validateAdditional() error {
 			return err
 		}
 		for name, v := range *c.Labels {
-			if strings.TrimSpace(name) == "" || !regexp.MustCompile(`^[0-9a-fA-F]{6}$`).MatchString(v.Color) {
+			if strings.TrimSpace(name) == "" || !labelColorPattern.MatchString(v.Color) {
 				return fmt.Errorf("invalid configuration: labels.%s requires a name and six-digit hexadecimal color", name)
 			}
 		}
@@ -236,7 +241,7 @@ func validateVariables(path string, variables *map[string]string) error {
 	seen := map[string]bool{}
 	for name := range *variables {
 		upper := strings.ToUpper(name)
-		if !regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`).MatchString(name) || strings.HasPrefix(upper, "GITHUB_") || seen[upper] {
+		if !variableNamePattern.MatchString(name) || strings.HasPrefix(upper, "GITHUB_") || seen[upper] {
 			return fmt.Errorf("invalid configuration: %s has invalid or duplicate variable name %q", path, name)
 		}
 		seen[upper] = true
