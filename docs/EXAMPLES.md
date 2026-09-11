@@ -246,3 +246,64 @@ done
 ```
 
 Repository selection, ordering, concurrency, and stop/continue policy remain explicit in the calling shell or CI matrix.
+## Deployment and Build Configuration
+
+Choose the sections available for your repository and plan before applying. Numeric reviewer IDs must refer to existing users or teams. Environment membership, variables, labels, autolinks, and deploy keys are authoritative collections, so export existing values before editing them.
+
+```yaml
+repository:
+  immutable_releases: true
+security:
+  private_vulnerability_reporting: true
+  code_scanning_default_setup:
+    state: configured
+    languages: [go]
+    query_suite: default
+    runner_type: standard
+actions:
+  sha_pinning_required: true
+  artifact_and_log_retention_days: 30
+  access_level: none
+  private_fork_workflows:
+    run_workflows_from_fork_pull_requests: true
+    send_write_tokens_to_workflows: false
+    send_secrets_and_variables: false
+    require_approval_for_fork_pr_workflows: true
+  oidc:
+    use_default: false
+    include_claim_keys: [repo, context, job_workflow_ref]
+  cache:
+    max_retention_days: 7
+    max_size_gb: 10
+  variables:
+    BUILD_MODE: release
+environments:
+  production:
+    wait_timer: 10
+    prevent_self_review: true
+    reviewers:
+      - type: Team
+        id: 123456
+    deployment_branch_policy:
+      protected_branches: false
+      custom_branch_policies: true
+    deployment_branch_patterns: [main]
+    deployment_tag_patterns: ["v*"]
+    variables:
+      DEPLOY_REGION: us-east-1
+pages:
+  enabled: true
+  build_type: workflow
+  cname: docs.example.com
+  https_enforced: true
+labels:
+  bug:
+    color: d73a4a
+    description: Something is not working
+autolinks:
+  "ENG-":
+    url_template: "https://issues.example.com/ENG-<num>"
+    is_alphanumeric: false
+```
+
+OIDC changes must match your cloud provider's trust configuration. Pages settings configure publishing but do not create the publishing workflow or DNS records. Add deploy keys using actual public key material, as described in the [configuration reference](CONFIGURATION.md#labels-autolinks-and-deploy-keys).

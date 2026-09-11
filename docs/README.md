@@ -9,7 +9,9 @@ permalink: /
 
 Declaratively export, review, and reconcile GitHub repository settings from one portable YAML file.
 
-**ghrepocfg** turns repository governance into a code-reviewable contract. It manages repository behavior, custom properties, security features, GitHub Actions policy, direct collaborators, team access, and repository rulesets while keeping every proposed change visible before it is applied.
+**ghrepocfg** turns repository governance into a code-reviewable contract. It manages repository behavior, custom properties, security features, GitHub Actions policy, direct collaborators, team access, repository rulesets, deployment environments, Pages, labels, autolinks, and deploy keys while keeping every proposed change visible before it is applied.
+
+Manage deployment approvals, cloud identity claims, build retention, and release controls alongside the settings your team already reviews. Export readable variables and publishing settings with the same explicit management boundary.
 
 ## Key Features
 

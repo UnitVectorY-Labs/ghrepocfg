@@ -9,6 +9,13 @@ import (
 	"github.com/UnitVectorY-Labs/ghrepocfg/internal/github"
 )
 
+func (f *fakeExec) Mutate(_ context.Context, _, _, method, path string, _ any) error {
+	return f.call(method + " " + path)
+}
+func (f *fakeExec) SetEnvironment(_ context.Context, _, _, name string, _ config.Environment) error {
+	return f.call("environment:" + name)
+}
+
 type fakeExec struct {
 	calls []string
 	fail  map[string]bool

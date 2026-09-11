@@ -225,6 +225,7 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 	}
 	scope := github.ReadScope{Verbose: o.verbose}
 	if full {
+		scope.Full = true
 		scope.Repository = true
 		scope.CustomProperties = true
 		scope.Security = true
@@ -289,7 +290,7 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 
 func scopeFor(c *config.Config, verbose bool) github.ReadScope {
 	selected := c.Actions != nil && c.Actions.SelectedActions != nil
-	return github.ReadScope{Repository: c.Repository != nil, CustomProperties: c.CustomProperties != nil, Security: c.Security != nil, Actions: c.Actions != nil, SelectedActions: selected, Collaborators: c.Collaborators != nil, Teams: c.Teams != nil, Rulesets: c.Rulesets != nil, Verbose: verbose}
+	return github.ReadScope{Desired: c, Repository: c.Repository != nil, CustomProperties: c.CustomProperties != nil, Security: c.Security != nil, Actions: c.Actions != nil, SelectedActions: selected, Collaborators: c.Collaborators != nil, Teams: c.Teams != nil, Rulesets: c.Rulesets != nil, Verbose: verbose}
 }
 
 func printPlan(w io.Writer, p *reconcile.Plan) {
@@ -312,6 +313,8 @@ func printPlanStyled(w io.Writer, p *reconcile.Plan, s styler) {
 			switch c.Operation {
 			case reconcile.Add:
 				fmt.Fprintf(w, "\n  %s\n    %s %s\n", s.cyan(c.Path), s.green("add:"), s.green(format(c.After)))
+			case reconcile.Replace:
+				fmt.Fprintf(w, "\n  %s\n    %s %s %s %s\n", s.cyan(c.Path), s.yellow("replace (delete then create):"), s.yellow(format(c.Before)), s.dim("->"), s.green(format(c.After)))
 			case reconcile.Remove:
 				fmt.Fprintf(w, "\n  %s\n    %s %s\n", s.cyan(c.Path), s.red("remove:"), s.red(format(c.Before)))
 			default:

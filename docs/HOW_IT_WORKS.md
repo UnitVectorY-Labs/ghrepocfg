@@ -43,7 +43,9 @@ Comparisons normalize:
 - GitHub `read`/`write` roles to `pull`/`push`;
 - custom repository roles;
 - the default ruleset target and bypass mode;
-- pending collaborator invitations as existing access.
+- pending collaborator invitations as existing access;
+- variable-name case, label-color case, and SSH public-key comments;
+- environment reviewer and branch/tag pattern ordering.
 
 When the repository is compliant, the plan is empty and no mutation request is sent.
 
@@ -59,7 +61,7 @@ Organization policy, licensing, or permission conflicts therefore do not prevent
 
 ## Export Behavior
 
-Full export reads every supported domain and fails if any authoritative domain cannot be read safely. There is no permission-aware partial export.
+Full export reads the core domains and discovers additional configuration APIs. Unavailable additional groups are omitted with warnings; failures in core domains and unexpected errors remain fatal. Explicitly managed groups always require successful reads. See [GitHub Features](GITHUB_FEATURES.md#additional-configuration-apis) for the availability policy.
 
 Scoped export reads every domain present in the destination and refreshes only its existing fields and collections. It also fails rather than preserving potentially stale or permission-filtered state.
 
