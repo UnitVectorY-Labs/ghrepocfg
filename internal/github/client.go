@@ -112,7 +112,7 @@ func (c *Client) paged(ctx context.Context, path string, out any) error {
 }
 
 func nextLink(link string) string {
-	for _, part := range strings.Split(link, ",") {
+	for part := range strings.SplitSeq(link, ",") {
 		pieces := strings.Split(strings.TrimSpace(part), ";")
 		if len(pieces) < 2 || !strings.Contains(pieces[1], `rel="next"`) {
 			continue

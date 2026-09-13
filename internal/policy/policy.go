@@ -92,12 +92,12 @@ func Resolve(layers []Layer) ([]byte, error) {
 		if err := yaml.Unmarshal(layer.Config, &document); err != nil {
 			return nil, err
 		}
-		authored, err := authoredValue(document.Content[0], reflect.TypeOf(config.Config{}))
+		authored, err := authoredValue(document.Content[0], reflect.TypeFor[config.Config]())
 		if err != nil {
 			return nil, fmt.Errorf("layer %s: %w", layer.Name, err)
 		}
 		values := authored.(map[string]any)
-		prepare(values, reflect.TypeOf(config.Config{}), nil)
+		prepare(values, reflect.TypeFor[config.Config](), nil)
 		merge(tree, values)
 		b, err := yaml.Marshal(tree)
 		if err != nil {
@@ -210,19 +210,19 @@ func fieldType(typ reflect.Type, key string) reflect.Type {
 		return typ.Elem()
 	}
 	if typ.Kind() == reflect.Struct {
-		for i := 0; i < typ.NumField(); i++ {
-			if strings.Split(typ.Field(i).Tag.Get("yaml"), ",")[0] == key {
-				return typ.Field(i).Type
+		for field := range typ.Fields() {
+			if strings.Split(field.Tag.Get("yaml"), ",")[0] == key {
+				return field.Type
 			}
 		}
 	}
-	return reflect.TypeOf((*any)(nil)).Elem()
+	return reflect.TypeFor[any]()
 }
 func sequenceElement(typ reflect.Type) reflect.Type {
 	if typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array {
 		return typ.Elem()
 	}
-	return reflect.TypeOf((*any)(nil)).Elem()
+	return reflect.TypeFor[any]()
 }
 
 // Prepare authored mappings without introducing omitted fields or model defaults.

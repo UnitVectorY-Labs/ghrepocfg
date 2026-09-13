@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -107,10 +108,8 @@ func (c *Config) validateAdditional() error {
 		if value == nil {
 			return nil
 		}
-		for _, choice := range choices {
-			if *value == choice {
-				return nil
-			}
+		if slices.Contains(choices, *value) {
+			return nil
 		}
 		return fmt.Errorf("invalid configuration: %s must be one of %s", name, strings.Join(choices, ", "))
 	}

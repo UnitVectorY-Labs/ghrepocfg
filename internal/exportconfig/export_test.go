@@ -8,10 +8,11 @@ import (
 	"github.com/UnitVectorY-Labs/ghrepocfg/internal/github"
 )
 
-func p[T any](v T) *T { return &v }
+//go:fix inline
+func p[T any](v T) *T { return new(v) }
 func TestScopedFromStatePreservesScalarAndSectionScope(t *testing.T) {
-	base := &config.Config{Repository: &config.RepositorySettings{HasWiki: p(false)}, Collaborators: &map[string]config.Access{}}
-	state := &github.State{Repository: &config.RepositorySettings{HasWiki: p(true), HasIssues: p(true)}, Collaborators: map[string]github.Collaborator{"alice": {Permission: "push"}}, Teams: map[string]github.Team{"platform": {Permission: "admin"}}}
+	base := &config.Config{Repository: &config.RepositorySettings{HasWiki: new(false)}, Collaborators: &map[string]config.Access{}}
+	state := &github.State{Repository: &config.RepositorySettings{HasWiki: new(true), HasIssues: new(true)}, Collaborators: map[string]github.Collaborator{"alice": {Permission: "push"}}, Teams: map[string]github.Team{"platform": {Permission: "admin"}}}
 	got := ScopedFromState(base, state)
 	if got.Repository.HasWiki == nil || !*got.Repository.HasWiki {
 		t.Fatal("managed value not refreshed")
@@ -69,11 +70,11 @@ func TestCustomPropertiesExportFullAndScoped(t *testing.T) {
 
 func TestAdditionalSectionsFullAndScoped(t *testing.T) {
 	state := &github.State{
-		Repository: &config.RepositorySettings{ImmutableReleases: p(true)},
-		Security:   &config.SecuritySettings{PrivateVulnerabilityReporting: p(true)},
-		Actions:    &config.ActionsSettings{SHAPinningRequired: p(true), Cache: &config.CacheSettings{MaxRetentionDays: p(7), MaxSizeGB: p(10)}},
+		Repository: &config.RepositorySettings{ImmutableReleases: new(true)},
+		Security:   &config.SecuritySettings{PrivateVulnerabilityReporting: new(true)},
+		Actions:    &config.ActionsSettings{SHAPinningRequired: new(true), Cache: &config.CacheSettings{MaxRetentionDays: new(7), MaxSizeGB: new(10)}},
 		Additional: config.Config{
-			Pages:        &config.PagesSettings{Enabled: p(false)},
+			Pages:        &config.PagesSettings{Enabled: new(false)},
 			Environments: &map[string]config.Environment{},
 			Labels:       &map[string]config.Label{"bug": {Color: "d73a4a", Description: "Bug"}},
 			Autolinks:    &map[string]config.Autolink{},
@@ -88,7 +89,7 @@ func TestAdditionalSectionsFullAndScoped(t *testing.T) {
 	if _, err := config.Parse(b); err != nil {
 		t.Fatalf("invalid export: %v\n%s", err, b)
 	}
-	base := &config.Config{Actions: &config.ActionsSettings{Cache: &config.CacheSettings{MaxRetentionDays: p(3)}}, Labels: &map[string]config.Label{}}
+	base := &config.Config{Actions: &config.ActionsSettings{Cache: &config.CacheSettings{MaxRetentionDays: new(3)}}, Labels: &map[string]config.Label{}}
 	scoped := ScopedFromState(base, state)
 	if scoped.Actions.Cache.MaxSizeGB != nil || scoped.Actions.SHAPinningRequired != nil || scoped.Pages != nil || scoped.Labels == nil || len(*scoped.Labels) != 1 {
 		t.Fatalf("scope expanded: %+v", scoped)
@@ -97,7 +98,7 @@ func TestAdditionalSectionsFullAndScoped(t *testing.T) {
 
 func TestScopedEnvironmentPreservesChildFields(t *testing.T) {
 	base := &config.Config{Environments: &map[string]config.Environment{"prod": {Variables: &map[string]string{}}}}
-	state := &github.State{Additional: config.Config{Environments: &map[string]config.Environment{"prod": {WaitTimer: p(10), Variables: &map[string]string{"REGION": "west"}}}}}
+	state := &github.State{Additional: config.Config{Environments: &map[string]config.Environment{"prod": {WaitTimer: new(10), Variables: &map[string]string{"REGION": "west"}}}}}
 	got := ScopedFromState(base, state)
 	if (*got.Environments)["prod"].WaitTimer != nil || len(*(*got.Environments)["prod"].Variables) != 1 {
 		t.Fatalf("scope expanded: %+v", *got.Environments)

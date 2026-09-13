@@ -76,14 +76,16 @@ func (f *fakeExec) UpdateRuleset(context.Context, string, string, string, int64,
 func (f *fakeExec) RemoveRuleset(context.Context, string, string, int64) error {
 	return f.call("remove-ruleset")
 }
-func ptr[T any](v T) *T { return &v }
+
+//go:fix inline
+func ptr[T any](v T) *T { return new(v) }
 
 func TestBuildManagedScalarsAndAuthoritativeCollections(t *testing.T) {
 	wantCollabs := map[string]config.Access{"Alice": {Permission: "push"}}
 	wantTeams := map[string]config.Access{}
 	wantRules := map[string]config.Ruleset{"main": {Enforcement: "active", Rules: []config.Rule{}}}
-	desired := &config.Config{Repository: &config.RepositorySettings{HasWiki: ptr(false)}, Collaborators: &wantCollabs, Teams: &wantTeams, Rulesets: &wantRules}
-	current := &github.State{Repository: &config.RepositorySettings{HasWiki: ptr(true), HasIssues: ptr(true)}, Collaborators: map[string]github.Collaborator{"alice": {Permission: "pull"}, "bob": {Permission: "pull"}}, Teams: map[string]github.Team{"old": {Permission: "push"}}, Rulesets: map[string]github.Ruleset{"main": {ID: 1, Value: config.Ruleset{Target: "branch", Enforcement: "active", Rules: nil}}, "old": {ID: 2, Value: config.Ruleset{Target: "tag", Enforcement: "active"}}}}
+	desired := &config.Config{Repository: &config.RepositorySettings{HasWiki: new(false)}, Collaborators: &wantCollabs, Teams: &wantTeams, Rulesets: &wantRules}
+	current := &github.State{Repository: &config.RepositorySettings{HasWiki: new(true), HasIssues: new(true)}, Collaborators: map[string]github.Collaborator{"alice": {Permission: "pull"}, "bob": {Permission: "pull"}}, Teams: map[string]github.Team{"old": {Permission: "push"}}, Rulesets: map[string]github.Ruleset{"main": {ID: 1, Value: config.Ruleset{Target: "branch", Enforcement: "active", Rules: nil}}, "old": {ID: 2, Value: config.Ruleset{Target: "tag", Enforcement: "active"}}}}
 	p := Build("acme", "repo", desired, current, &fakeExec{}, false)
 	if !p.Drift {
 		t.Fatal("expected drift")
@@ -152,8 +154,8 @@ func TestCustomPropertiesAreAuthoritativeAndFailuresAreIsolated(t *testing.T) {
 }
 
 func TestIdempotentPlan(t *testing.T) {
-	d := &config.Config{Repository: &config.RepositorySettings{HasWiki: ptr(true)}}
-	s := &github.State{Repository: &config.RepositorySettings{HasWiki: ptr(true), HasIssues: ptr(true)}}
+	d := &config.Config{Repository: &config.RepositorySettings{HasWiki: new(true)}}
+	s := &github.State{Repository: &config.RepositorySettings{HasWiki: new(true), HasIssues: new(true)}}
 	p := Build("o", "r", d, s, &fakeExec{}, true)
 	if p.Drift || len(p.Changes) != 0 {
 		t.Fatalf("unexpected drift: %#v", p.Changes)
@@ -172,7 +174,7 @@ func TestIdempotentPlan(t *testing.T) {
 func TestRulesetUpdateFalseMatchesGitHubOmittedParameters(t *testing.T) {
 	want := map[string]config.Ruleset{"tag": {
 		Target: "tag", Enforcement: "active",
-		Rules: []config.Rule{{Type: "update", Parameters: &config.RuleParameters{UpdateAllowsFetchAndMerge: ptr(false)}}},
+		Rules: []config.Rule{{Type: "update", Parameters: &config.RuleParameters{UpdateAllowsFetchAndMerge: new(false)}}},
 	}}
 	got := map[string]github.Ruleset{"tag": {
 		ID: 1, Value: config.Ruleset{Target: "tag", Enforcement: "active", Rules: []config.Rule{{Type: "update"}}},
@@ -186,7 +188,7 @@ func TestRulesetUpdateFalseMatchesGitHubOmittedParameters(t *testing.T) {
 func TestRulesetUpdateTrueDoesNotMatchGitHubOmittedParameters(t *testing.T) {
 	want := map[string]config.Ruleset{"branch": {
 		Enforcement: "active",
-		Rules:       []config.Rule{{Type: "update", Parameters: &config.RuleParameters{UpdateAllowsFetchAndMerge: ptr(true)}}},
+		Rules:       []config.Rule{{Type: "update", Parameters: &config.RuleParameters{UpdateAllowsFetchAndMerge: new(true)}}},
 	}}
 	got := map[string]github.Ruleset{"branch": {
 		ID: 1, Value: config.Ruleset{Target: "branch", Enforcement: "active", Rules: []config.Rule{{Type: "update"}}},

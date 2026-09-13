@@ -63,8 +63,8 @@ func TestConfirmDefaultsNo(t *testing.T) {
 }
 
 func TestDiffConfig(t *testing.T) {
-	a := &config.Config{Repository: &config.RepositorySettings{HasWiki: boolp(false)}}
-	b := &config.Config{Repository: &config.RepositorySettings{HasWiki: boolp(true), HasIssues: boolp(true)}}
+	a := &config.Config{Repository: &config.RepositorySettings{HasWiki: new(false)}}
+	b := &config.Config{Repository: &config.RepositorySettings{HasWiki: new(true), HasIssues: new(true)}}
 	changes := diffConfig(a, b)
 	if len(changes) != 2 {
 		t.Fatalf("changes=%#v", changes)
@@ -72,10 +72,12 @@ func TestDiffConfig(t *testing.T) {
 }
 
 func TestNewExportDiffReportsLeafAdditions(t *testing.T) {
-	after := &config.Config{Repository: &config.RepositorySettings{HasWiki: boolp(true), HasIssues: boolp(false)}}
+	after := &config.Config{Repository: &config.RepositorySettings{HasWiki: new(true), HasIssues: new(false)}}
 	changes := diffConfig(nil, after)
 	if len(changes) != 2 || changes[0].Path != "repository.has_issues" || changes[1].Path != "repository.has_wiki" {
 		t.Fatalf("changes = %#v", changes)
 	}
 }
-func boolp(v bool) *bool { return &v }
+
+//go:fix inline
+func boolp(v bool) *bool { return new(v) }

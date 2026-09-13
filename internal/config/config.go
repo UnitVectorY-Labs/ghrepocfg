@@ -178,7 +178,7 @@ type Ruleset struct {
 	Target       string        `yaml:"target,omitempty" json:"target,omitempty"`
 	Enforcement  string        `yaml:"enforcement" json:"enforcement"`
 	BypassActors []BypassActor `yaml:"bypass_actors,omitempty" json:"bypass_actors,omitempty"`
-	Conditions   Conditions    `yaml:"conditions,omitempty" json:"conditions,omitempty"`
+	Conditions   Conditions    `yaml:"conditions,omitempty" json:"conditions"`
 	Rules        []Rule        `yaml:"rules,omitempty" json:"rules,omitempty"`
 }
 
@@ -468,7 +468,7 @@ func validateRule(rule Rule) error {
 		if rv.Field(i).IsNil() {
 			continue
 		}
-		name := strings.Split(rt.Field(i).Tag.Get("json"), ",")[0]
+		name, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
 		if !allowedField[name] {
 			return fmt.Errorf("parameter %q is not valid for rule type %q", name, rule.Type)
 		}

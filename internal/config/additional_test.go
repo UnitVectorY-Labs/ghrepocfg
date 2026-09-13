@@ -45,7 +45,7 @@ func TestDocumentedDeploymentExampleParses(t *testing.T) {
 	if len(fenced) != 2 {
 		t.Fatal("YAML example missing")
 	}
-	example := strings.SplitN(fenced[1], "```", 2)[0]
+	example, _, _ := strings.Cut(fenced[1], "```")
 	if _, err := Parse([]byte(example)); err != nil {
 		t.Fatalf("documentation example: %v", err)
 	}

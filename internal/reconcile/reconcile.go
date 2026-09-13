@@ -155,7 +155,7 @@ func repositoryChanges(p *Plan, owner, repo string, want, got *config.Repository
 		if wv.Field(i).IsNil() {
 			continue
 		}
-		tag := strings.Split(typ.Field(i).Tag.Get("json"), ",")[0]
+		tag, _, _ := strings.Cut(typ.Field(i).Tag.Get("json"), ",")
 		before := gv.Field(i).Interface()
 		after := wv.Field(i).Interface()
 		if valuesEqual(before, after) {
@@ -195,7 +195,7 @@ func securityChanges(p *Plan, owner, repo string, want, got *config.SecuritySett
 		if wv.Field(i).IsNil() {
 			continue
 		}
-		tag := strings.Split(typ.Field(i).Tag.Get("json"), ",")[0]
+		tag, _, _ := strings.Cut(typ.Field(i).Tag.Get("json"), ",")
 		if tag == "vulnerability_alerts" || tag == "automated_security_fixes" || tag == "private_vulnerability_reporting" || tag == "code_scanning_default_setup" {
 			continue
 		}
@@ -402,7 +402,7 @@ func unmanagedRepository(desired, current *config.RepositorySettings) []string {
 		if desired != nil && !dv.Field(i).IsNil() {
 			continue
 		}
-		tag := strings.Split(ct.Field(i).Tag.Get("json"), ",")[0]
+		tag, _, _ := strings.Cut(ct.Field(i).Tag.Get("json"), ",")
 		out = append(out, "repository."+tag)
 	}
 	return out
@@ -429,7 +429,7 @@ func normalize(v reflect.Value) any {
 		m := map[string]any{}
 		t := v.Type()
 		for i := 0; i < v.NumField(); i++ {
-			tag := strings.Split(t.Field(i).Tag.Get("json"), ",")[0]
+			tag, _, _ := strings.Cut(t.Field(i).Tag.Get("json"), ",")
 			if tag == "" || tag == "-" {
 				continue
 			}

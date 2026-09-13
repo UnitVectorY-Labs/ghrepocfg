@@ -39,7 +39,7 @@ func semanticValue(v reflect.Value, path []string, unordered bool) any {
 		}
 		return semanticValue(v.Elem(), path, unordered)
 	}
-	if v.Type() == reflect.TypeOf(CustomPropertyValue{}) {
+	if v.Type() == reflect.TypeFor[CustomPropertyValue]() {
 		return semanticValue(reflect.ValueOf(v.Interface().(CustomPropertyValue).Value), path, true)
 	}
 	switch v.Kind() {
@@ -65,7 +65,7 @@ func semanticValue(v reflect.Value, path []string, unordered bool) any {
 			}
 			child := append(append([]string(nil), path...), name)
 			x := semanticValue(fv, child, unorderedField(t, name))
-			if t == reflect.TypeOf(Label{}) && name == "color" {
+			if t == reflect.TypeFor[Label]() && name == "color" {
 				if color, ok := x.(string); ok {
 					x = strings.ToLower(color)
 				}
@@ -74,19 +74,19 @@ func semanticValue(v reflect.Value, path []string, unordered bool) any {
 				m[name] = x
 			}
 		}
-		if t == reflect.TypeOf(Ruleset{}) && v.Interface().(Ruleset).Target == "" {
+		if t == reflect.TypeFor[Ruleset]() && v.Interface().(Ruleset).Target == "" {
 			m["target"] = "branch"
 		}
-		if t == reflect.TypeOf(BypassActor{}) && v.Interface().(BypassActor).BypassMode == "" {
+		if t == reflect.TypeFor[BypassActor]() && v.Interface().(BypassActor).BypassMode == "" {
 			m["bypass_mode"] = "always"
 		}
-		if t == reflect.TypeOf(DeployKey{}) {
+		if t == reflect.TypeFor[DeployKey]() {
 			parts := strings.Fields(v.Interface().(DeployKey).Key)
 			if len(parts) >= 2 {
 				m["key"] = strings.Join(parts[:2], " ")
 			}
 		}
-		if t == reflect.TypeOf(Rule{}) && ruleUpdateDefaults(v) {
+		if t == reflect.TypeFor[Rule]() && ruleUpdateDefaults(v) {
 			m["parameters"] = map[string]any{"update_allows_fetch_and_merge": false}
 		}
 		return m
@@ -145,21 +145,21 @@ func ruleUpdateDefaults(v reflect.Value) bool {
 // Rules and rule selections are unordered, including structured members.
 func unorderedField(parent reflect.Type, field string) bool {
 	switch parent {
-	case reflect.TypeOf(RepositorySettings{}):
+	case reflect.TypeFor[RepositorySettings]():
 		return field == "topics"
-	case reflect.TypeOf(SelectedActions{}):
+	case reflect.TypeFor[SelectedActions]():
 		return field == "patterns_allowed"
-	case reflect.TypeOf(CodeScanningSetup{}):
+	case reflect.TypeFor[CodeScanningSetup]():
 		return field == "languages"
-	case reflect.TypeOf(Environment{}):
+	case reflect.TypeFor[Environment]():
 		return field == "reviewers" || field == "deployment_branch_patterns" || field == "deployment_tag_patterns"
-	case reflect.TypeOf(DelegatedBypassOptions{}):
+	case reflect.TypeFor[DelegatedBypassOptions]():
 		return field == "reviewers"
-	case reflect.TypeOf(Ruleset{}):
+	case reflect.TypeFor[Ruleset]():
 		return field == "rules" || field == "bypass_actors"
-	case reflect.TypeOf(RefNameCondition{}):
+	case reflect.TypeFor[RefNameCondition]():
 		return field == "include" || field == "exclude"
-	case reflect.TypeOf(RuleParameters{}), reflect.TypeOf(DismissalRestriction{}), reflect.TypeOf(RequiredReviewer{}):
+	case reflect.TypeFor[RuleParameters](), reflect.TypeFor[DismissalRestriction](), reflect.TypeFor[RequiredReviewer]():
 		return true
 	}
 	return false

@@ -3,6 +3,7 @@ package reconcile
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/url"
 	"sort"
@@ -287,9 +288,7 @@ func object(v any) map[string]any {
 }
 func merged(current, desired any) map[string]any {
 	m := object(current)
-	for k, v := range object(desired) {
-		m[k] = v
-	}
+	maps.Copy(m, object(desired))
 	return m
 }
 func mapValue[T any](m *map[string]T) map[string]T {

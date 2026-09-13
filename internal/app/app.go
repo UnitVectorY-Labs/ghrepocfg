@@ -360,8 +360,7 @@ func writeJSON(w io.Writer, v any) {
 }
 func reportError(w io.Writer, err error) int { printError(w, err); return exitError }
 func actionableAPIError(err error) error {
-	var apiErr *github.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*github.APIError](err); ok {
 		switch apiErr.Status {
 		case 401:
 			return fmt.Errorf("authentication failed; run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN: %w", err)
