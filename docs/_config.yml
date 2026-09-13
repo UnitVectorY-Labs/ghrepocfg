@@ -1,5 +1,5 @@
 title: ghrepocfg
-description: "Declaratively manage, review, export, and synchronize GitHub repository settings from a configuration file."
+description: "Export, layer, compare, and reconcile GitHub repository settings with portable YAML configurations."
 
 remote_theme: just-the-docs/just-the-docs@v0.12.0
 plugins:

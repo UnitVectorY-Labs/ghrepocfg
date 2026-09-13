@@ -16,8 +16,8 @@ permalink: /install
 
 ## Prerequisites
 
-- **GitHub.com repository:** GitHub Enterprise Server is not supported in v1
-- **GitHub authentication:** an authenticated GitHub CLI session, `GH_TOKEN`, or `GITHUB_TOKEN`
+- **For export and apply:** a GitHub.com repository; GitHub Enterprise Server is not supported in v1
+- **For export and apply:** an authenticated GitHub CLI session, `GH_TOKEN`, or `GITHUB_TOKEN`
 - **Latest version of Go:** required only for `go install` or building from source
 
 The installed binary calls GitHub directly. The `gh` executable is an optional credential source and is not needed for normal API operations.
@@ -58,7 +58,7 @@ Version output includes the application version, Go version, operating system, a
 
 ## Authentication
 
-Credentials are resolved in this order:
+`export` and `apply` require authentication. The offline `resolve`, `diff`, `version`, and `help` commands do not. Credentials are resolved in this order:
 
 1. `gh auth token --hostname github.com`, when the GitHub CLI is installed and authenticated
 2. `GH_TOKEN`

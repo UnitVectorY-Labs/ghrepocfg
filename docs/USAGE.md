@@ -1,75 +1,34 @@
 ---
 layout: default
-title: Usage
+title: Command Reference
 nav_order: 3
+has_children: true
 permalink: /usage
 ---
 
-# Usage
+# Command Reference
 {: .no_toc }
 
-## Table of Contents
-{: .no_toc .text-delta }
+Choose a command by the work you want to do. Each command page documents its syntax, options, behavior, examples, and exit codes.
 
-- TOC
-{:toc}
-
-## Commands
-
-```text
-ghrepocfg export [flags]
-ghrepocfg apply [flags]
-ghrepocfg version
-```
-
-There is no separate validate, diff, or check command. Configuration validation is automatic, `apply --dry-run` checks repository drift, and `export --dry-run` previews configuration-file changes.
-
-## Export
-
-```text
-ghrepocfg export [--repo OWNER/REPO] [--config PATH] [--full] [--dry-run]
-```
-
-`export` reads supported repository state and produces YAML.
-
-- A new destination receives every supported setting that can be safely read.
-- An existing destination preserves its management scope and refreshes only fields and collections already present.
-- `--full` replaces an existing management scope with a complete export.
-- `--dry-run` compares against a file destination, prints what would change, writes nothing, and never prompts.
-- Without a file destination, YAML is written to stdout and diagnostics remain on stderr.
-
-When no `--config` is supplied, export writes `.ghrepocfg.yaml` at the Git root only when the local checkout corresponds to the target repository. Otherwise it writes YAML to stdout.
-
-## Apply
-
-```text
-ghrepocfg apply [--repo OWNER/REPO] [--config PATH] [--dry-run] [-y]
-```
-
-`apply` strictly validates YAML, reads all managed state, builds one complete plan, and displays that plan before changing anything.
-
-- With no drift, it reports `No changes.` and makes no mutation requests.
-- By default, one confirmation prompt covers the entire plan and defaults to no.
-- `-y` or `--yes` approves the plan without prompting.
-- `--dry-run` never prompts or mutates and returns exit code `2` when drift exists.
-- `--json` emits a structured plan when combined with `--dry-run`.
-
-After approval, independent mutations continue if one mutation fails. Successful paths and every failure are reported at the end.
-
-## Flags
-
-| Flag | Commands | Description |
+| Command | Purpose | GitHub access |
 |---|---|---|
-| `-R`, `--repo OWNER/REPO` | export, apply | Target repository |
-| `--config PATH` | export, apply | YAML source or destination |
-| `--full` | export | Replace the existing management scope with all safely readable supported settings |
-| `--dry-run` | export, apply | Preview without writing or prompting |
-| `-y`, `--yes` | apply | Skip the confirmation prompt |
-| `--json` | export, apply | Emit structured dry-run output |
-| `-v`, `--verbose` | export, apply | Emit one level of additional diagnostics |
-| `-h`, `--help` | export, apply | Print command usage |
+| [`export`](commands/export.md) | Capture repository state as literal YAML | Required |
+| [`resolve`](commands/resolve.md) | Materialize ordered layers and constraints as literal YAML | None |
+| [`diff`](commands/diff.md) | Compare two literal configurations semantically | None |
+| [`apply`](commands/apply.md) | Reconcile one repository with one literal configuration | Required |
+| [`version`](commands/version.md) | Print build and platform information | None |
+| [`help`](commands/help.md) | Find commands and command-specific options | None |
 
-Repeated verbose flags do not create additional verbosity levels. There is no quiet flag.
+For a first run, start with [Installation](INSTALL.md) and [Examples](EXAMPLES.md). Use the [Configuration Reference](CONFIGURATION.md) for YAML fields and [Layered Policy](POLICY.md) for merge rules and constraints.
+
+## Shared CLI conventions
+
+Options belong after the command name. Place options before positional arguments, as in `ghrepocfg diff --json old.yaml new.yaml`. `resolve` takes its ordered inputs through repeated `--layer` options.
+
+There is no separate validation command: configuration-consuming commands validate automatically. Available flags differ by command; consult its reference page. Repeated verbose flags do not increase verbosity, and there is no quiet flag.
+
+The repository, configuration-path, and authentication environment settings below apply to `export` and `apply`. Offline commands use only their explicit file arguments. `NO_COLOR` applies to human-readable output throughout the CLI.
 
 ## Environment Variables
 
@@ -81,11 +40,11 @@ Repeated verbose flags do not create additional verbosity levels. There is no qu
 | `GITHUB_TOKEN` | Authentication fallback when GitHub CLI credentials and `GH_TOKEN` are unavailable | 3 |
 | `NO_COLOR` | Disable ANSI color when set to a non-empty value | — |
 
-Environment variables are not expanded inside YAML. Configuration is literal: no templates, includes, inheritance, layering, substitution, or expression evaluation are supported.
+Environment variables are not expanded inside YAML. Ordinary configuration files remain literal; layering is available only when explicitly requested with `resolve`, and constraints remain in separate policy files.
 
 ## Repository Resolution
 
-The target repository is resolved in this order:
+For `export` and `apply`, the target repository is resolved in this order:
 
 1. `--repo` or `-R`
 2. `GHREPOCFG_REPO`
@@ -95,7 +54,7 @@ The target repository is resolved in this order:
 
 ## Configuration Resolution
 
-The path is resolved in this order:
+For `export` and `apply`, the configuration path is resolved in this order:
 
 1. `--config`
 2. `GHREPOCFG_CONFIG`
@@ -105,10 +64,10 @@ For apply outside a Git checkout, the last fallback is `.ghrepocfg.yaml` in the 
 
 ## Output Streams
 
-- Exported YAML intended for piping is written to stdout.
-- JSON dry-run output is written to stdout without human-readable contamination.
+- Exported and resolved YAML intended for piping is written to stdout.
+- JSON diff and dry-run output is written to stdout without human-readable contamination.
 - Warnings, diagnostics, prompts, and errors are written to stderr where appropriate.
-- Human-readable plans and apply success output are written to stdout.
+- Human-readable plans, effective configuration diffs, and apply success output are written to stdout.
 
 ## Color Output
 
@@ -132,9 +91,9 @@ NO_COLOR=1 ghrepocfg apply --dry-run
 
 | Code | Meaning |
 |---:|---|
-| `0` | Successful and compliant, or a successful non-dry-run operation |
-| `1` | Configuration, authentication, API, cancellation, or mutation failure |
-| `2` | Repository drift from `apply --dry-run`, or file changes from `export --dry-run` |
+| `0` | Successful and compliant, no `diff` changes, or a successful non-dry-run operation |
+| `1` | Configuration, authentication, API, cancellation, mutation failure, or `diff` error |
+| `2` | Repository drift from `apply --dry-run`, file changes from `export --dry-run`, or effective differences from `diff` |
 
 Use a compiled binary when testing exit codes. The `go run` launcher converts a child exit status such as `2` into its own failure status.
 
