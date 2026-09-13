@@ -48,12 +48,16 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, version strin
 	case "help", "--help", "-h":
 		usage(stdout)
 		return exitOK
+	case "resolve":
+		return runResolve(args[1:], stdout, stderr)
+	case "diff":
+		return runDiff(args[1:], stdout, stderr)
 	case "apply":
 		return runApply(args[1:], stdin, stdout, stderr)
 	case "export":
 		return runExport(args[1:], stdout, stderr)
 	default:
-		return reportError(stderr, fmt.Errorf("unknown command %q (expected apply or export)", args[0]))
+		return reportError(stderr, fmt.Errorf("unknown command %q (expected apply, export, resolve, or diff)", args[0]))
 	}
 }
 
@@ -61,12 +65,14 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, `Usage:
   ghrepocfg export [--repo OWNER/REPO] [--config PATH] [--full] [--dry-run]
   ghrepocfg apply  [--repo OWNER/REPO] [--config PATH] [--dry-run] [-y]
+  ghrepocfg resolve --layer FILE [--constraints FILE] [--layer FILE ...] [--output FILE]
+  ghrepocfg diff [--json] OLD.yaml NEW.yaml
 
 Common options:
   -R, --repo OWNER/REPO  target repository (or GHREPOCFG_REPO)
       --config PATH      YAML file (or GHREPOCFG_CONFIG)
   -v, --verbose          additional diagnostics
-      --json             structured dry-run output
+      --json             structured diff or dry-run output
   -h, --help             show command help`)
 }
 

@@ -16,7 +16,7 @@ permalink: /configuration
 
 ## File Format
 
-The default file is `.ghrepocfg.yaml` at the repository root. v1 accepts one YAML document only. JSON configuration, templates, includes, inheritance, variable substitution, environment interpolation, configuration layering, and expressions are not supported.
+The default file is `.ghrepocfg.yaml` at the repository root. A configuration file is one YAML document and always represents literal desired state. Templates, includes, variable substitution, environment interpolation, and expressions are not supported. Explicit layering is provided by [`resolve`](commands/resolve.md), while constraints remain in separate policy files; ordinary files remain valid everywhere they are used today.
 
 Unknown keys at every modeled level are errors. Empty strings, `false`, `0`, `[]`, and `{}` are literal desired values.
 

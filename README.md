@@ -2,9 +2,11 @@
 
 # ghrepocfg
 
-Declaratively manage, review, export, and synchronize GitHub repository settings from a configuration file.
+Declaratively manage, review, export, layer, compare, and synchronize GitHub repository settings from configuration files.
 
 `ghrepocfg` captures supported repository settings as literal YAML, previews drift as a complete plan, and applies only what changed. It handles repository settings, custom properties, security controls, GitHub Actions policy, direct collaborators, team access, repository rulesets, deployment environments, Pages, labels, autolinks, and deploy keys in one standalone Go binary.
+
+Build reusable governance with `resolve`, which combines ordered literal configurations and optional policy constraints into one effective file. Review policy changes with the offline, semantic `diff` command before deciding whether to apply them.
 
 ```console
 $ ghrepocfg export --repo acme/reference --config .ghrepocfg.yaml
@@ -50,11 +52,12 @@ Use `--repo owner/repo` and `--config PATH` to apply one portable configuration 
 ## Documentation
 
 - [Installation](docs/INSTALL.md)
-- [Usage](docs/USAGE.md)
+- [Command reference](docs/USAGE.md): [export](docs/commands/export.md), [resolve](docs/commands/resolve.md), [diff](docs/commands/diff.md), [apply](docs/commands/apply.md), [version](docs/commands/version.md), [help](docs/commands/help.md)
 - [Examples](docs/EXAMPLES.md)
 - [Configuration reference](docs/CONFIGURATION.md)
+- [Layered policy](docs/POLICY.md)
 - [GitHub features](docs/GITHUB_FEATURES.md)
 - [How it works](docs/HOW_IT_WORKS.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 
-`ghrepocfg` targets GitHub.com and intentionally operates on exactly one repository per invocation. Multi-repository orchestration belongs in the shell, where the selection and rollout remain explicit.
+`export` and `apply` target one GitHub.com repository per invocation; `resolve` and `diff` operate on local files. Multi-repository orchestration belongs in the shell, where the selection and rollout remain explicit.

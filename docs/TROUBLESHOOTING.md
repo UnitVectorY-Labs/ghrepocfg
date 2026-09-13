@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Troubleshooting
-nav_order: 8
+nav_order: 9
 permalink: /troubleshooting
 ---
 
@@ -27,6 +27,18 @@ Inference requires a current Git checkout with exactly one distinct GitHub.com r
 ## Configuration File Cannot Be Found
 
 Use `--config PATH` or `GHREPOCFG_CONFIG`. The default is `.ghrepocfg.yaml` at the Git root, or in the working directory for apply outside a checkout.
+
+`resolve` accepts explicit `--layer` paths and does not infer a Git root. `diff` requires two positional configuration paths.
+
+## Resolve or Diff Rejects a File
+
+Each layer and each diff input must be a complete, strictly valid `ghrepocfg` configuration. Check unknown keys, field value types, and whether an empty collection was intended. Resolve constraints are separate from configuration files; malformed JSON Pointer paths, missing constrained values, a wrong constraint mode, and inherited lock violations are errors. Diagnostics identify the path and layers involved.
+
+Resolve does not treat a layer as a partial fragment with a wrapper key. Put ordinary configuration keys such as `repository` or `actions` at the document root.
+
+## Diff Reports a Change After Reformatting YAML
+
+Formatting, comments, and mapping key order are ignored. A reported difference reflects configuration meaning: a changed scalar, an array whose semantic contents or order changed, or a management-boundary change such as omission versus an explicit empty collection. Use `--json` to inspect exact paths and values.
 
 ## Authentication Fails
 
@@ -66,6 +78,7 @@ For custom properties, confirm that the property exists, the value is allowed, t
 ## Dry-Run Returns a Nonzero Status
 
 - Exit `2` means drift or export-file changes were successfully detected.
+- `diff` uses exit `0` for equal effective configurations, `2` for effective differences, and `1` for invalid input or another error.
 - Exit `1` means validation, authentication, permission, API, or another operational failure.
 
 Inspect JSON without treating expected drift as an operational failure by handling exit `2` separately. See [Examples](EXAMPLES.md#use-json-in-ci).

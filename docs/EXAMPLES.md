@@ -246,6 +246,37 @@ done
 ```
 
 Repository selection, ordering, concurrency, and stop/continue policy remain explicit in the calling shell or CI matrix.
+
+## Resolve Layered Policy
+
+Layers remain ordinary configuration files and are ordered from least specific to most specific:
+
+```bash
+ghrepocfg resolve \
+  --layer governance.yaml --constraints governance-policy.yaml \
+  --layer payments.yaml \
+  --layer service.yaml > effective.yaml
+ghrepocfg apply --repo acme/payments --config effective.yaml --yes
+```
+
+Later scalars replace earlier values, maps compose by key, and arrays replace earlier arrays. Omitted values inherit; explicit empty collections remain explicit. See [Layered Policy](POLICY.md) for exact locks and required array elements.
+
+## Compare Effective Policy in CI
+
+```bash
+set +e
+ghrepocfg resolve --layer base.yaml --layer repo.yaml > head-effective.yaml
+ghrepocfg diff base-effective.yaml head-effective.yaml
+status=$?
+set -e
+case "$status" in
+  0) echo "Effective policy is unchanged" ;;
+  2) echo "Effective policy changed; include the diff in review" ;;
+  1) echo "Could not compare policy" >&2; exit 1 ;;
+esac
+```
+
+Use `ghrepocfg diff --json` when automation needs paths and before/after values without parsing human-readable text. Both commands are offline and do not select repositories or contact GitHub.
 ## Deployment and Build Configuration
 
 Choose the sections available for your repository and plan before applying. Numeric reviewer IDs must refer to existing users or teams. Environment membership, variables, labels, autolinks, and deploy keys are authoritative collections, so export existing values before editing them.
