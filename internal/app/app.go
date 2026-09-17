@@ -204,7 +204,7 @@ func runApply(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return reportError(stderr, err)
 		}
 	}
-	fmt.Fprintf(stdout, "Applied %d change(s); skipped %d attribute(s).\n", len(succeeded), len(result.Skipped))
+	fmt.Fprintln(stdout, outStyle.green(outStyle.bold(fmt.Sprintf("Applied %d change(s); skipped %d attribute(s).", len(succeeded), len(result.Skipped)))))
 
 	return exitOK
 }

@@ -131,6 +131,8 @@ Interactive terminal output uses color to distinguish meaning:
 - red for removals, failures, and errors;
 - dim text for arrows, prompts, verbose context, and unmanaged settings.
 
+The final apply summary uses green, bold text and includes both applied and skipped counts; permission skips also produce warnings on stderr.
+
 Color is enabled only when the corresponding output stream is an interactive terminal. Redirected and piped output remains plain. Set `NO_COLOR` to any non-empty value to disable ANSI color, following the [`NO_COLOR` convention](https://no-color.org/):
 
 ```bash
