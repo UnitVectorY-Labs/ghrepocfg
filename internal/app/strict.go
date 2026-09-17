@@ -19,15 +19,16 @@ func noChangesMessage(complete bool) string {
 	return "No changes."
 }
 func printUnavailable(w io.Writer, operation string, unavailable []github.Unavailable, preserve bool) {
+	s := styleFor(w)
 	for _, u := range unavailable {
 		action := "skipped"
 		if operation == "export" {
-			action = "omitted"
+			action = "omitted from export"
 			if preserve {
-				action = "not refreshed; existing value retained"
+				action = "not refreshed (existing value retained)"
 			}
 		}
-		fmt.Fprintf(w, "warning: %s: %s %s; %s.\n", operation, u.Path, action, u.Reason)
+		fmt.Fprintf(w, "%s %s %s: %s.\n", s.yellow(s.bold("warning:")), u.Path, action, strings.TrimSuffix(u.Reason, "."))
 	}
 }
 
