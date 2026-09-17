@@ -30,6 +30,7 @@ func NewClient(token string) *Client {
 type APIError struct {
 	Method, Path, Message, DocumentationURL string
 	Status                                  int
+	Headers                                 http.Header
 }
 
 func (e *APIError) Error() string {
@@ -73,11 +74,12 @@ func (c *Client) request(ctx context.Context, method, path string, body any, out
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var detail struct {
-			Message, DocumentationURL string
-			Errors                    json.RawMessage
+			Message          string
+			DocumentationURL string `json:"documentation_url"`
+			Errors           json.RawMessage
 		}
 		_ = json.Unmarshal(b, &detail)
-		return resp.Header, &APIError{Method: method, Path: path, Status: resp.StatusCode, Message: detail.Message, DocumentationURL: detail.DocumentationURL}
+		return resp.Header, &APIError{Method: method, Path: path, Status: resp.StatusCode, Message: detail.Message, DocumentationURL: detail.DocumentationURL, Headers: resp.Header.Clone()}
 	}
 	if out != nil && len(b) > 0 {
 		if err := json.Unmarshal(b, out); err != nil {

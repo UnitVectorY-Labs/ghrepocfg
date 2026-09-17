@@ -103,3 +103,36 @@ func TestScopedEnvironmentPreservesChildFields(t *testing.T) {
 		t.Fatalf("scope expanded: %+v", *got.Environments)
 	}
 }
+
+func TestUnavailableExportPreservesExistingValues(t *testing.T) {
+	base := &config.Config{CustomProperties: &map[string]config.CustomPropertyValue{"team": {Value: "platform"}}, Repository: &config.RepositorySettings{Description: p("old")}}
+	state := &github.State{Repository: &config.RepositorySettings{Description: p("new")}}
+	state.Omit([]string{"custom_properties"}, "denied")
+	if full := FromState(state); full.CustomProperties != nil {
+		t.Fatal("unknown collection exported as empty")
+	}
+	scoped := ScopedFromState(base, state)
+	if scoped.CustomProperties == nil || (*scoped.CustomProperties)["team"].Value != "platform" || *scoped.Repository.Description != "new" {
+		t.Fatalf("scoped=%+v", scoped)
+	}
+}
+
+func TestUnavailableEnvironmentVariablePreservesLiteralName(t *testing.T) {
+	base := &config.Config{Environments: &map[string]config.Environment{"PROD.US": {WaitTimer: p(1), Variables: &map[string]string{"A": "keep"}}}}
+	state := &github.State{Additional: config.Config{Environments: &map[string]config.Environment{"prod.us": {WaitTimer: p(2)}}}}
+	state.Omit([]string{"environments", "prod.us", "variables"}, "denied")
+	got := ScopedFromState(base, state)
+	env := (*got.Environments)["prod.us"]
+	if env.Variables == nil || (*env.Variables)["A"] != "keep" || *env.WaitTimer != 2 {
+		t.Fatalf("environment=%+v", env)
+	}
+}
+
+func TestAvailabilityCopyPreservesIntegerIDs(t *testing.T) {
+	id := int64(9007199254740993)
+	state := &github.State{Rulesets: map[string]github.Ruleset{"main": {Value: config.Ruleset{Enforcement: "active", BypassActors: []config.BypassActor{{ActorID: &id, ActorType: "Team"}}}}}}
+	got := FromState(state)
+	if actual := *(*got.Rulesets)["main"].BypassActors[0].ActorID; actual != id {
+		t.Fatalf("actor ID changed: got %d want %d", actual, id)
+	}
+}

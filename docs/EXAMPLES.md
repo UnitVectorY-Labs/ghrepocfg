@@ -195,7 +195,7 @@ No confirmation or mutation occurs. Exit code `2` indicates drift.
 ## Use JSON in CI
 
 ```bash
-ghrepocfg apply --dry-run --json > ghrepocfg-plan.json
+ghrepocfg apply --dry-run --strict --json > ghrepocfg-plan.json
 status=$?
 
 case "$status" in
@@ -214,7 +214,7 @@ ghrepocfg apply \
   --yes
 ```
 
-`--yes` skips only the prompt. Validation, complete state reads, planning, mutation failure aggregation, and exit codes remain unchanged.
+`--yes` skips only the prompt. Validation, permission-aware reads, planning, and failure reporting remain active. Add `--strict` to require complete reads and verified application.
 
 ## Refresh an Existing Configuration
 
@@ -307,3 +307,15 @@ autolinks:
 ```
 
 OIDC changes must match your cloud provider's trust configuration. Pages settings configure publishing but do not create the publishing workflow or DNS records. Add deploy keys using actual public key material, as described in the [configuration reference](CONFIGURATION.md#labels-autolinks-and-deploy-keys).
+
+## Require Complete Results
+
+```bash
+# Reject incomplete export without replacing an existing file.
+ghrepocfg export --repo OWNER/REPO --config settings.yaml --strict
+
+# Require every managed value to be effective after applying.
+ghrepocfg apply --repo OWNER/REPO --config settings.yaml --strict --yes
+```
+
+Omit `--strict` to continue independent work when attributes are inaccessible. Scoped export retains unreadable configured values and warns that they were not refreshed.

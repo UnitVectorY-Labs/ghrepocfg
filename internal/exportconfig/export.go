@@ -2,32 +2,41 @@
 package exportconfig
 
 import (
+	"strings"
+
 	"github.com/UnitVectorY-Labs/ghrepocfg/internal/config"
 	"github.com/UnitVectorY-Labs/ghrepocfg/internal/github"
-	"strings"
 )
 
 func FromState(s *github.State) *config.Config {
 	c := s.Additional
 	c.Repository, c.Security, c.Actions = s.Repository, s.Security, s.Actions
 	properties := cloneCustomProperties(s.CustomProperties)
-	c.CustomProperties = &properties
+	if s.CustomProperties != nil {
+		c.CustomProperties = &properties
+	}
 	collabs := map[string]config.Access{}
 	for name, v := range s.Collaborators {
 		collabs[name] = config.Access{Permission: v.Permission}
 	}
-	c.Collaborators = &collabs
+	if s.Collaborators != nil {
+		c.Collaborators = &collabs
+	}
 	teams := map[string]config.Access{}
 	for name, v := range s.Teams {
 		teams[name] = config.Access{Permission: v.Permission}
 	}
-	c.Teams = &teams
+	if s.Teams != nil {
+		c.Teams = &teams
+	}
 	rules := map[string]config.Ruleset{}
 	for name, v := range s.Rulesets {
 		rules[name] = v.Value
 	}
-	c.Rulesets = &rules
-	return &c
+	if s.Rulesets != nil {
+		c.Rulesets = &rules
+	}
+	return s.Available(&c)
 }
 
 func ScopedFromState(base *config.Config, s *github.State) *config.Config {
@@ -45,7 +54,7 @@ func ScopedFromState(base *config.Config, s *github.State) *config.Config {
 		}
 		out.Environments = &environments
 	}
-	return out
+	return config.WithUnavailable(out, base, s.UnavailablePaths())
 }
 
 func cloneCustomProperties(in map[string]config.CustomPropertyValue) map[string]config.CustomPropertyValue {

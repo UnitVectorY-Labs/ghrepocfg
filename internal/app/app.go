@@ -32,8 +32,8 @@ const (
 )
 
 type options struct {
-	repo, config                     string
-	verbose, json, dryRun, yes, full bool
+	repo, config                             string
+	verbose, json, dryRun, yes, full, strict bool
 }
 
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, version string) int {
@@ -67,6 +67,7 @@ Common options:
       --config PATH      YAML file (or GHREPOCFG_CONFIG)
   -v, --verbose          additional diagnostics
       --json             structured dry-run output
+      --strict           require complete reads and verified apply results
   -h, --help             show command help`)
 }
 
@@ -81,6 +82,7 @@ func parseFlags(command string, args []string, stderr io.Writer) (options, error
 	fs.BoolVar(&o.verbose, "v", false, "verbose diagnostics")
 	fs.BoolVar(&o.json, "json", false, "JSON output")
 	fs.BoolVar(&o.dryRun, "dry-run", false, "plan without writing")
+	fs.BoolVar(&o.strict, "strict", false, "require complete reads and verified apply results")
 	if command == "apply" {
 		fs.BoolVar(&o.yes, "yes", false, "approve all changes")
 		fs.BoolVar(&o.yes, "y", false, "approve all changes")
@@ -148,14 +150,21 @@ func runApply(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return reportError(stderr, actionableAPIError(err))
 	}
 	plan := reconcile.Build(owner, repo, desired, state, client, o.verbose)
+	printUnavailable(stderr, "apply", plan.Skipped, false)
 	if o.json {
 		writeJSON(stdout, plan)
+		if o.strict && !plan.Complete {
+			return exitError
+		}
 		if plan.Drift {
 			return exitDrift
 		}
 		return exitOK
 	}
 	printPlan(stdout, plan)
+	if o.strict && !plan.Complete {
+		return reportError(stderr, errors.New("strict apply requires complete managed state; no changes applied"))
+	}
 	if o.dryRun {
 		if plan.Drift {
 			return exitDrift
@@ -163,13 +172,20 @@ func runApply(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	if !plan.Drift {
+		if o.strict {
+			if err := verifyManaged(ctx, client, owner, repo, desired, o.verbose); err != nil {
+				return reportError(stderr, err)
+			}
+		}
 		return exitOK
 	}
 	if !o.yes && !confirm(stdin, stderr, len(plan.Changes)) {
 		fmt.Fprintln(stderr, errStyle.yellow("Apply cancelled."))
 		return exitError
 	}
-	succeeded, failed := plan.Execute(ctx)
+	result := plan.ExecuteWithPolicy(ctx, o.strict)
+	succeeded, failed := result.Applied, result.Failed
+	printUnavailable(stderr, "apply", result.Skipped[len(plan.Skipped):], false)
 	for _, path := range succeeded {
 		fmt.Fprintf(stdout, "%s %s\n", outStyle.green("Applied"), outStyle.cyan(path))
 	}
@@ -180,7 +196,16 @@ func runApply(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		return exitError
 	}
-	fmt.Fprintln(stdout, outStyle.green(outStyle.bold(fmt.Sprintf("Applied %d change(s).", len(succeeded)))))
+	if o.strict && len(result.Skipped) > 0 {
+		return reportError(stderr, errors.New("strict apply incomplete; some attributes were skipped"))
+	}
+	if o.strict {
+		if err := verifyManaged(ctx, client, owner, repo, desired, o.verbose); err != nil {
+			return reportError(stderr, err)
+		}
+	}
+	fmt.Fprintf(stdout, "Applied %d change(s); skipped %d attribute(s).\n", len(succeeded), len(result.Skipped))
+
 	return exitOK
 }
 
@@ -243,6 +268,13 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return reportError(stderr, actionableAPIError(err))
 	}
+	printUnavailable(stderr, "export", state.Unavailable, !full)
+	if o.strict && len(state.Unavailable) > 0 {
+		if o.json {
+			writeJSON(stdout, map[string]any{"repository": owner + "/" + repo, "complete": false, "skipped": state.Unavailable})
+		}
+		return reportError(stderr, errors.New("strict export requires complete requested state; output was not written"))
+	}
 	var exported *config.Config
 	if full {
 		exported = exportconfig.FromState(state)
@@ -263,7 +295,7 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 	}
 	if o.dryRun {
 		changes := diffConfig(base, exported)
-		result := map[string]any{"repository": owner + "/" + repo, "changed": len(changes) > 0, "changes": changes, "warnings": state.Warnings}
+		result := map[string]any{"repository": owner + "/" + repo, "changed": len(changes) > 0, "changes": changes, "warnings": state.Warnings, "complete": len(state.Unavailable) == 0, "skipped": state.Unavailable}
 		if o.json {
 			writeJSON(stdout, result)
 		} else {
@@ -306,7 +338,7 @@ func printPlanStyled(w io.Writer, p *reconcile.Plan, s styler) {
 		fmt.Fprintln(w)
 	}
 	if len(p.Changes) == 0 {
-		fmt.Fprintln(w, s.green(s.bold("No changes.")))
+		fmt.Fprintln(w, s.green(s.bold(noChangesMessage(p.Complete))))
 	} else {
 		fmt.Fprintln(w, s.bold("Changes:"))
 		for _, c := range p.Changes {
@@ -354,13 +386,16 @@ func writeJSON(w io.Writer, v any) {
 }
 func reportError(w io.Writer, err error) int { printError(w, err); return exitError }
 func actionableAPIError(err error) error {
+	if github.IsRateLimit(err) {
+		return fmt.Errorf("GitHub rate limit reached; retry after the rate limit resets: %w", err)
+	}
 	var apiErr *github.APIError
 	if errors.As(err, &apiErr) {
 		switch apiErr.Status {
 		case 401:
 			return fmt.Errorf("authentication failed; run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN: %w", err)
 		case 403:
-			return fmt.Errorf("GitHub denied access; verify token repository, Administration, Actions, and organization Members permissions: %w", err)
+			return fmt.Errorf("GitHub denied access; verify repository access, token permissions, account role, and organization policy: %w", err)
 		case 404:
 			return fmt.Errorf("repository or managed resource was not found; verify the repository and token access: %w", err)
 		}

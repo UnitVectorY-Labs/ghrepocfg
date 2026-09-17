@@ -33,13 +33,13 @@ Apply performs these stages in order:
 7. Confirm once unless `--yes` or `--dry-run` was supplied.
 8. Execute planned mutations.
 
-No mutation can occur before every managed domain has been read successfully. A permission or API failure during state collection aborts before the prompt.
+No mutation is planned from unreadable state. Readers record unavailable paths separately from values; export and reconciliation consult this metadata. Permission denials and ambiguous resource absence skip affected paths by default. Other read failures abort before the prompt. `--strict` also aborts on incomplete reads.
 
 ## Idempotence
 
 Comparisons normalize:
 
-- nil and empty API collections;
+- known nil and empty API collections (unreadable collections are never compared);
 - GitHub `read`/`write` roles to `pull`/`push`;
 - custom repository roles;
 - the default ruleset target and bypass mode;
@@ -55,15 +55,15 @@ Human and JSON plans distinguish additions, modifications, and removals. Access 
 
 ## Partial Mutation Failures
 
-GitHub does not provide a transaction across repository endpoints. After approval, independent mutations continue when one mutation fails. The final result lists successful paths, consolidates every failure, and returns exit code `1` when any requested mutation failed.
+GitHub does not provide a transaction across repository endpoints. Default execution warns and skips denied writes, while continuing independent changes. Other failures return exit `1`; rate limits stop further writes. Dependent requests are skipped if their prerequisite failed. An error after an earlier step succeeded is a partial failure, never a harmless permission skip. Strict execution stops at the first denied or failed write and verifies managed values after successful execution.
 
 Organization policy, licensing, or permission conflicts therefore do not prevent unrelated independent changes from being attempted.
 
 ## Export Behavior
 
-Full export reads the core domains and discovers additional configuration APIs. Unavailable additional groups are omitted with warnings; failures in core domains and unexpected errors remain fatal. Explicitly managed groups always require successful reads. See [GitHub Features](GITHUB_FEATURES.md#additional-configuration-apis) for the availability policy.
+Full export discovers supported configuration APIs and omits unavailable attributes with warnings. The initial repository read is mandatory. Authentication, rate-limit, network, validation, server, and decode errors remain failures. See [Permissions](PERMISSIONS.md).
 
-Scoped export reads every domain present in the destination and refreshes only its existing fields and collections. It also fails rather than preserving potentially stale or permission-filtered state.
+Scoped export refreshes only existing fields and collections. Unreadable paths retain their previous configured values with an explicit stale-value warning. `--strict` requires complete requested state and leaves the destination unchanged on incomplete reads.
 
 Files are written through a temporary file and atomic rename. Generated key ordering is stable, while comments and custom formatting are not preserved.
 

@@ -17,7 +17,9 @@ func TestSecurityUpdatesDecodeDisabledBody(t *testing.T) {
 		}
 		return response(204, "", nil), nil
 	})
-	got, err := c.readSecurity(context.Background(), "o", "r", nil)
+	state := &State{}
+	err := c.readSecurityScoped(context.Background(), "o", "r", nil, ReadScope{Desired: &config.Config{Security: &config.SecuritySettings{AutomatedSecurityFixes: boolPointer(true)}}}, state)
+	got := state.Security
 	if err != nil || got.AutomatedSecurityFixes == nil || *got.AutomatedSecurityFixes {
 		t.Fatalf("state=%+v err=%v", got, err)
 	}
@@ -56,21 +58,22 @@ func TestAdditionalReadScopeAndUnavailable(t *testing.T) {
 	})
 	enabled := true
 	s, err := c.Read(context.Background(), "o", "r", ReadScope{Desired: &config.Config{Pages: &config.PagesSettings{Enabled: &enabled}}})
-	if err != nil || s.Additional.Pages == nil || *s.Additional.Pages.Enabled {
+	if err != nil || s.Additional.Pages != nil || len(s.Unavailable) != 1 {
 		t.Fatalf("%+v %v", s, err)
 	}
-	// Explicit configuration never swallows unavailable endpoints.
+	// Scoped reads report unavailable endpoints without inventing values.
 	c = testClient(func(r *http.Request) (*http.Response, error) {
 		return response(403, `{"message":"unavailable"}`, nil), nil
 	})
-	err = c.readAdditional(context.Background(), "o", "r", ReadScope{Desired: &config.Config{Labels: &map[string]config.Label{}}}, &State{})
-	if err == nil {
-		t.Fatal("explicit read silently omitted inaccessible labels")
+	scoped := &State{}
+	err = c.readAdditional(context.Background(), "o", "r", ReadScope{Desired: &config.Config{Labels: &map[string]config.Label{}}}, scoped)
+	if err != nil || len(scoped.Unavailable) != 1 {
+		t.Fatal("scoped read did not report inaccessible labels")
 	}
 	// Full discovery omits unavailable groups without inventing empty collections.
 	s = &State{Repository: &config.RepositorySettings{}, Security: &config.SecuritySettings{}, Actions: &config.ActionsSettings{}}
 	err = c.readAdditional(context.Background(), "o", "r", ReadScope{Full: true}, s)
-	if err != nil || s.Additional.Labels != nil || len(s.Warnings) == 0 {
+	if err != nil || s.Additional.Labels != nil || len(s.Unavailable) == 0 {
 		t.Fatalf("state=%+v err=%v", s, err)
 	}
 }
@@ -240,3 +243,5 @@ func TestReadRepositoryVisibility(t *testing.T) {
 		}
 	}
 }
+
+func boolPointer(v bool) *bool { return &v }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 
 	"github.com/UnitVectorY-Labs/ghrepocfg/internal/config"
@@ -22,7 +23,7 @@ func (c *Client) Mutate(ctx context.Context, owner, repo, method, suffix string,
 	if method == http.MethodPut && (suffix == "/actions/cache/retention-limit" || suffix == "/actions/cache/storage-limit") {
 		var actual map[string]int
 		if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, suffix), nil, &actual); err != nil {
-			return fmt.Errorf("verify cache limit after write: %w", err)
+			return AfterMutation(fmt.Errorf("verify cache limit after write: %w", err))
 		}
 		encoded, err := json.Marshal(body)
 		if err != nil {
@@ -93,19 +94,31 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 			}
 			return fmt.Errorf("%s does not apply to public repositories; remove this field from the configuration", name)
 		}
-		err := fn()
-		if scope.Full && (IsStatus(err, 403) || IsStatus(err, 404) || IsStatus(err, 409) || IsStatus(err, 422)) {
-			s.Warnings = append(s.Warnings, fmt.Sprintf("%s unavailable; omitted from export: %v", name, err))
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("read %s: %w", name, err)
-		}
-		return nil
+		return s.read([]string{name}, fn)
 	}
+
 	get := func(path string, out any) error {
-		_, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, path), nil, out)
-		return err
+		var raw map[string]json.RawMessage
+		if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, path), nil, &raw); err != nil {
+			return err
+		}
+		// Single-value endpoints must expose their value; a missing value is not zero.
+		typ := reflect.TypeOf(out).Elem()
+		if typ.Kind() == reflect.Struct && typ.NumField() == 1 {
+			field := typ.Field(0)
+			key := strings.Split(field.Tag.Get("json"), ",")[0]
+			if key == "" {
+				key = strings.ToLower(field.Name)
+			}
+			if value, ok := raw[key]; !ok || string(value) == "null" {
+				return &unreadableState{reason: "requested value is not exposed by GitHub"}
+			}
+		}
+		b, err := json.Marshal(raw)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(b, out)
 	}
 	if err := read("repository.immutable_releases", d.Repository != nil && d.Repository.ImmutableReleases != nil, func() error {
 		var v struct {
@@ -257,11 +270,7 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 	if err := read("pages", d.Pages != nil, func() error {
 		var v config.PagesSettings
 		err := get("/pages", &v)
-		if IsStatus(err, 404) {
-			disabled := false
-			s.Additional.Pages = &config.PagesSettings{Enabled: &disabled}
-			return nil
-		}
+
 		if err != nil {
 			return err
 		}
@@ -350,7 +359,7 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 		}
 		v := map[string]config.Environment{}
 		for _, item := range items {
-			e, err := c.readEnvironment(ctx, owner, repo, item.Name)
+			e, err := c.readEnvironmentScoped(ctx, owner, repo, item.Name, scope, s)
 			if err != nil {
 				return err
 			}
@@ -360,7 +369,7 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 		return nil
 	})
 }
-func (c *Client) readEnvironment(ctx context.Context, owner, repo, name string) (config.Environment, error) {
+func (c *Client) readEnvironmentScoped(ctx context.Context, owner, repo, name string, scope ReadScope, state *State) (config.Environment, error) {
 	path := repoPath(owner, repo, "/environments/"+url.PathEscape(name))
 	var raw struct {
 		DeploymentBranchPolicy *config.DeploymentBranchPolicy `json:"deployment_branch_policy"`
@@ -410,17 +419,39 @@ func (c *Client) readEnvironment(ctx context.Context, owner, repo, name string) 
 	}
 	e.DeploymentBranchPatterns = &branches
 	e.DeploymentTagPatterns = &tags
-	variables, err := c.readVariables(ctx, path+"/variables")
-	if err != nil {
-		return e, err
+	readVars := scope.Full
+	if scope.Desired != nil && scope.Desired.Environments != nil {
+		for key, want := range *scope.Desired.Environments {
+			if strings.EqualFold(key, name) && want.Variables != nil {
+				readVars = true
+			}
+		}
 	}
-	e.Variables = variables
+	if readVars {
+		variables, err := c.readVariables(ctx, path+"/variables")
+		if err != nil {
+			if reason, ok := UnavailableReason(err, true); ok {
+				state.Omit([]string{"environments", name, "variables"}, reason)
+			} else {
+				return e, err
+			}
+		} else {
+			e.Variables = variables
+		}
+	}
+
 	return e, nil
 }
 
 // SetEnvironment preserves omitted settings and changes only requested policy
 // collections. Creation precedes dependent variables and branch/tag policies.
-func (c *Client) SetEnvironment(ctx context.Context, owner, repo, name string, want config.Environment) error {
+func (c *Client) SetEnvironment(ctx context.Context, owner, repo, name string, want config.Environment) (result error) {
+	mutated := false
+	defer func() {
+		if mutated && result != nil {
+			result = AfterMutation(result)
+		}
+	}()
 	if policy := want.DeploymentBranchPolicy; policy != nil && !policy.CustomBranchPolicies {
 		if (want.DeploymentBranchPatterns != nil && len(*want.DeploymentBranchPatterns) > 0) || (want.DeploymentTagPatterns != nil && len(*want.DeploymentTagPatterns) > 0) {
 			return fmt.Errorf("environment %s requires deployment_branch_policy.custom_branch_policies: true before applying branch/tag patterns", name)
@@ -447,6 +478,7 @@ func (c *Client) SetEnvironment(ctx context.Context, owner, repo, name string, w
 	if err := c.Mutate(ctx, owner, repo, http.MethodPut, suffix, body); err != nil {
 		return err
 	}
+	mutated = true
 	if want.DeploymentBranchPolicy == nil || want.DeploymentBranchPolicy.CustomBranchPolicies {
 		if want.DeploymentBranchPatterns != nil || want.DeploymentTagPatterns != nil {
 			var policies []struct {

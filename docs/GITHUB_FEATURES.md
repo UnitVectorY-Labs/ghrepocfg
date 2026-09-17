@@ -48,11 +48,11 @@ Rulesets use their names as portable YAML keys. Live numeric IDs are retained on
 
 List responses do not include complete rule definitions, so every repository-owned ruleset is fetched individually before comparison. Parent organization and enterprise rulesets are excluded and never proposed for removal.
 
-GitHub returns bypass actors only to callers with sufficient write visibility. Repository admin access is therefore required for authoritative ruleset reads and exports.
+GitHub returns bypass actors only to callers with sufficient write visibility. If bypass actors are withheld, the ruleset collection is marked incomplete and skipped; strict mode fails.
 
 ## Security Features
 
-Some security endpoints use `404` for both a disabled feature and an inaccessible resource. Repository admin visibility is required before **ghrepocfg** interprets that response as disabled.
+Some security endpoints use `404` for both a disabled feature and an inaccessible resource. Ambiguous responses are marked unavailable; **ghrepocfg** does not infer disabled state from `404`.
 
 GitHub may omit security-and-analysis features that are unavailable because of repository visibility, licensing, product selection, or organization policy. Full export omits unavailable fields instead of guessing their state.
 
@@ -79,7 +79,6 @@ A generated configuration should not be assumed to represent legacy protection s
 - Legacy branch and tag protection mutation or migration
 - GitHub Enterprise Server and custom API base URLs
 - Webhooks, custom scanning patterns, custom deployment protection integrations, individual workflows/runners, and unlisted repository collections
-- General permission-aware partial export (additional optional APIs can be omitted with warnings during full discovery)
 - Multi-repository orchestration inside the application
 
 Unsupported high-risk and secret keys are rejected with actionable validation errors rather than silently accepted.
@@ -112,6 +111,6 @@ All REST suffixes below are relative to `/repos/{owner}/{repo}`.
 
 References: [repository settings](https://docs.github.com/en/rest/repos/repos), [Actions policies](https://docs.github.com/en/rest/actions/permissions), [OIDC](https://docs.github.com/en/rest/actions/oidc), [cache limits](https://docs.github.com/en/rest/actions/cache), [variables](https://docs.github.com/en/rest/actions/variables), [environments](https://docs.github.com/en/rest/deployments/environments), [CodeQL setup](https://docs.github.com/en/rest/code-scanning/code-scanning), [Pages](https://docs.github.com/en/rest/pages/pages), [labels](https://docs.github.com/en/rest/issues/labels), [autolinks](https://docs.github.com/en/rest/repos/autolinks), [deploy keys](https://docs.github.com/en/rest/deploy-keys/deploy-keys).
 
-Full discovery omits an additional API group with a warning when GitHub responds with 403, 404, 409, or 422. Explicitly managed groups fail instead, before mutations. No inaccessible collection is converted to an empty authoritative collection. Network, authentication, server, and decode errors remain fatal. Existing core-domain read requirements still apply.
+Full and scoped reads handle access denial (`403`, excluding rate limits) and ambiguous absence (`404`) per attribute or safe dependency group. Full exports omit unknown values; scoped exports preserve previous values. Apply skips affected attributes. Conflicts (`409`), validation failures (`422`), rate limits, authentication, network, server, and decode errors remain failures. `--strict` rejects incomplete state. See [Permissions](PERMISSIONS.md).
 
 Public repositories have no private-fork workflow policy or external Actions access policy. Full export skips `actions.private_fork_workflows` and `actions.access_level` without API calls or warnings when repository metadata identifies public visibility. Explicitly requesting either setting on a public repository fails with an applicability error. Unknown visibility retains the normal API discovery behavior.

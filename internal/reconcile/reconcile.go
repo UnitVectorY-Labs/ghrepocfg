@@ -1,5 +1,5 @@
-// Package reconcile turns a strictly validated desired config and a fully read
-// GitHub state into a structured, executable plan.
+// Package reconcile builds executable plans from validated configuration and
+// available GitHub state, preserving unknown attributes as explicit skips.
 package reconcile
 
 import (
@@ -32,11 +32,14 @@ type Change struct {
 }
 
 type Plan struct {
-	Repository string   `json:"repository"`
-	Drift      bool     `json:"drift"`
-	Changes    []Change `json:"changes"`
-	Warnings   []string `json:"warnings,omitempty"`
-	Unmanaged  []string `json:"unmanaged,omitempty"`
+	dependencies map[string]string
+	Complete     bool                 `json:"complete"`
+	Skipped      []github.Unavailable `json:"skipped,omitempty"`
+	Repository   string               `json:"repository"`
+	Drift        bool                 `json:"drift"`
+	Changes      []Change             `json:"changes"`
+	Warnings     []string             `json:"warnings,omitempty"`
+	Unmanaged    []string             `json:"unmanaged,omitempty"`
 }
 
 type Executor interface {
@@ -61,7 +64,17 @@ type Executor interface {
 }
 
 func Build(owner, repo string, desired *config.Config, current *github.State, exec Executor, verbose bool) *Plan {
-	p := &Plan{Repository: owner + "/" + repo, Changes: make([]Change, 0), Warnings: append([]string(nil), current.Warnings...)}
+	desired = current.Available(desired)
+	p := &Plan{Complete: len(current.Unavailable) == 0, Skipped: append([]github.Unavailable(nil), current.Unavailable...), Repository: owner + "/" + repo, Changes: make([]Change, 0), Warnings: append([]string(nil), current.Warnings...)}
+	if current.Repository == nil {
+		current.Repository = &config.RepositorySettings{}
+	}
+	if current.Security == nil {
+		current.Security = &config.SecuritySettings{}
+	}
+	if current.Actions == nil {
+		current.Actions = &config.ActionsSettings{}
+	}
 	if desired.Repository != nil {
 		repositoryChanges(p, owner, repo, desired.Repository, current.Repository, exec)
 	}
@@ -478,13 +491,13 @@ type Failure struct {
 	Error string `json:"error"`
 }
 
+// Execute reports skipped operations as failures for callers using the original
+// two-result interface. CLI callers use ExecuteWithPolicy for partial results.
 func (p *Plan) Execute(ctx context.Context) (succeeded []string, failed []Failure) {
-	for _, c := range p.Changes {
-		if err := c.apply(ctx); err != nil {
-			failed = append(failed, Failure{c.Path, err.Error()})
-		} else {
-			succeeded = append(succeeded, c.Path)
-		}
+	result := p.ExecuteWithPolicy(ctx, false)
+	failed = result.Failed
+	for _, skip := range result.Skipped {
+		failed = append(failed, Failure{Path: skip.Path, Error: "skipped: " + skip.Reason})
 	}
-	return
+	return result.Applied, failed
 }
