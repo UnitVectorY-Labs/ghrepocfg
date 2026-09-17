@@ -27,14 +27,14 @@ There is no separate validate, diff, or check command. Configuration validation 
 ## Export
 
 ```text
-ghrepocfg export [--repo OWNER/REPO] [--config PATH] [--full] [--dry-run]
+ghrepocfg export [--repo OWNER/REPO] [--config PATH] [--full] [--dry-run] [--strict]
 ```
 
 `export` reads supported repository state and produces YAML.
 
 - A new destination receives every supported setting that can be safely read.
 - An existing destination preserves its management scope and refreshes only fields and collections already present.
-- `--full` replaces an existing management scope with a complete export.
+- `--full` replaces an existing management scope with all safely readable supported settings.
 - `--dry-run` compares against a file destination, prints what would change, writes nothing, and never prompts.
 - Without a file destination, YAML is written to stdout and diagnostics remain on stderr.
 
@@ -43,10 +43,10 @@ When no `--config` is supplied, export writes `.ghrepocfg.yaml` at the Git root 
 ## Apply
 
 ```text
-ghrepocfg apply [--repo OWNER/REPO] [--config PATH] [--dry-run] [-y]
+ghrepocfg apply [--repo OWNER/REPO] [--config PATH] [--dry-run] [--strict] [-y]
 ```
 
-`apply` strictly validates YAML, reads all managed state, builds one complete plan, and displays that plan before changing anything.
+`apply` strictly validates YAML, reads requested state, builds a plan for safely readable attributes, and displays that plan before changing anything.
 
 - With no drift, it reports `No changes.` and makes no mutation requests.
 - By default, one confirmation prompt covers the entire plan and defaults to no.
@@ -54,7 +54,17 @@ ghrepocfg apply [--repo OWNER/REPO] [--config PATH] [--dry-run] [-y]
 - `--dry-run` never prompts or mutates and returns exit code `2` when drift exists.
 - `--json` emits a structured plan when combined with `--dry-run`.
 
-After approval, independent mutations continue if one mutation fails. Successful paths and every failure are reported at the end.
+After approval, permission-denied writes are skipped with warnings and independent mutations continue. Other mutation errors remain failures. Strict mode stops on the first denied or failed write; successful earlier writes are not rolled back.
+
+## Partial Access and Strict Mode
+
+Default export omits unreadable attributes from a new/full export. A scoped refresh retains their existing values and warns that they were not refreshed. Default apply skips unreadable attributes and permission-denied writes, continuing independent work. Unknown collections never become empty collections.
+
+`--strict` is optional and off by default. Strict export fails before writing YAML or replacing a file if requested state is incomplete. Strict apply rejects incomplete reads before confirmation, stops on a denied/failed mutation, and reads back the managed configuration after applying. Remaining drift, unreadable verification state, or pending collaborator invitations cause exit `1`. Code scanning setup is polled for up to 15 seconds within the command's two-minute deadline. Strict mode provides no transaction or rollback.
+
+A strict dry run checks read completeness and known drift; it cannot prove future write access. JSON dry runs include `complete` and a `skipped` array of `{path, reason}` objects. An incomplete strict export dry run returns that diagnostic object without proposing a partial file update. Permission warnings always go to stderr.
+
+Use `--strict` in CI when exit `0` must mean that all configured state was evaluated. In default mode, exit `0` may include skipped attributes, and exit `2` reports only known drift. See [Permissions](PERMISSIONS.md).
 
 ## Flags
 
@@ -64,6 +74,7 @@ After approval, independent mutations continue if one mutation fails. Successful
 | `--config PATH` | export, apply | YAML source or destination |
 | `--full` | export | Replace the existing management scope with all safely readable supported settings |
 | `--dry-run` | export, apply | Preview without writing or prompting |
+| `--strict` | export, apply | Require complete reads; verify all managed values after apply (default: off) |
 | `-y`, `--yes` | apply | Skip the confirmation prompt |
 | `--json` | export, apply | Emit structured dry-run output |
 | `-v`, `--verbose` | export, apply | Emit one level of additional diagnostics |
@@ -120,6 +131,10 @@ Interactive terminal output uses color to distinguish meaning:
 - red for removals, failures, and errors;
 - dim text for arrows, prompts, verbose context, and unmanaged settings.
 
+Permission warnings use a yellow, bold `warning:` prefix followed directly by the affected attribute and reason, without an extra command label.
+
+The final apply summary uses green, bold text and includes both applied and skipped counts; permission skips also produce warnings on stderr.
+
 Color is enabled only when the corresponding output stream is an interactive terminal. Redirected and piped output remains plain. Set `NO_COLOR` to any non-empty value to disable ANSI color, following the [`NO_COLOR` convention](https://no-color.org/):
 
 ```bash
@@ -132,8 +147,8 @@ NO_COLOR=1 ghrepocfg apply --dry-run
 
 | Code | Meaning |
 |---:|---|
-| `0` | Successful and compliant, or a successful non-dry-run operation |
-| `1` | Configuration, authentication, API, cancellation, or mutation failure |
+| `0` | Completed; default mode may have explicit permission skips |
+| `1` | Configuration, authentication, API, cancellation, mutation failure, or strict incompleteness |
 | `2` | Repository drift from `apply --dry-run`, or file changes from `export --dry-run` |
 
 Use a compiled binary when testing exit codes. The `go run` launcher converts a child exit status such as `2` into its own failure status.

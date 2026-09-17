@@ -16,7 +16,9 @@ Manage deployment approvals, cloud identity claims, build retention, and release
 ## Key Features
 
 - **Desired-state configuration** — only fields present in YAML are managed
-- **Complete drift plans** — inspect every addition, modification, and removal before applying
+- **Permission-aware operation** — keep independent work moving, with clear warnings for inaccessible attributes
+- **Optional strict mode** — require complete exports and verify every managed value after apply
+- **Reviewable drift plans** — inspect every addition, modification, and removal before applying
 - **Safe access management** — reconcile direct collaborators, pending invitations, and team permissions authoritatively
 - **Repository rulesets** — manage branch, tag, and push rulesets without converting legacy protections
 - **Custom properties** — export and reconcile repository metadata, including multi-select values
@@ -28,3 +30,5 @@ Manage deployment approvals, cloud identity claims, build retention, and release
 
 {: .highlight }
 **ghrepocfg** manages exactly one GitHub.com repository per invocation. Use a shell loop or CI matrix when applying the same configuration to multiple repositories.
+
+See [Permissions and partial access](PERMISSIONS.md) for token requirements and `--strict` behavior.

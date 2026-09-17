@@ -13,6 +13,7 @@ import (
 )
 
 type State struct {
+	Unavailable      []Unavailable
 	Visibility       string // Observed metadata, never a managed setting.
 	Additional       config.Config
 	AutolinkIDs      map[string]int64
@@ -87,64 +88,37 @@ func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) 
 	if scope.Verbose {
 		s.UnknownFields = unknownRepositoryFields(raw)
 	}
-	var permissions struct {
-		Admin bool `json:"admin"`
-	}
-	if value, ok := raw["permissions"]; ok {
-		_ = json.Unmarshal(value, &permissions)
-	}
-	additionalAdmin := scope.Full
-	if d := scope.Desired; d != nil {
-		additionalAdmin = d.Environments != nil || d.Pages != nil || d.Autolinks != nil || d.DeployKeys != nil || (d.Repository != nil && d.Repository.ImmutableReleases != nil)
-	}
-	if (scope.Security || scope.Collaborators || scope.Teams || scope.Rulesets || additionalAdmin) && !permissions.Admin {
-		return nil, fmt.Errorf("repository admin access is required to safely read managed security, access, and ruleset state")
-	}
 	if scope.Security {
-		v, err := c.readSecurity(ctx, owner, repo, raw["security_and_analysis"])
-		if err != nil {
-			return nil, fmt.Errorf("read security settings: %w", err)
+		if err := c.readSecurityScoped(ctx, owner, repo, raw["security_and_analysis"], scope, s); err != nil {
+			return nil, err
 		}
-		s.Security = v
-	}
-	if scope.CustomProperties {
-		v, err := c.readCustomProperties(ctx, owner, repo)
-		if err != nil {
-			return nil, fmt.Errorf("read custom properties: %w", err)
-		}
-		s.CustomProperties = v
 	}
 	if scope.Actions {
-		v, err := c.readActions(ctx, owner, repo, scope.SelectedActions)
-		if err != nil {
-			return nil, fmt.Errorf("read Actions settings: %w", err)
+		if err := c.readActionsScoped(ctx, owner, repo, scope, s); err != nil {
+			return nil, err
 		}
-		s.Actions = v
 	}
-	if scope.Collaborators {
-		v, err := c.readCollaborators(ctx, owner, repo)
-		if err != nil {
-			return nil, fmt.Errorf("read collaborators: %w", err)
-		}
-		s.Collaborators = v
+	readers := []struct {
+		name   string
+		wanted bool
+		read   func() error
+	}{
+		{"custom_properties", scope.CustomProperties, func() (err error) { s.CustomProperties, err = c.readCustomProperties(ctx, owner, repo); return }},
+		{"collaborators", scope.Collaborators, func() (err error) { s.Collaborators, err = c.readCollaborators(ctx, owner, repo); return }},
+		{"teams", scope.Teams, func() (err error) { s.Teams, err = c.readTeams(ctx, owner, repo); return }},
+		{"rulesets", scope.Rulesets, func() (err error) { s.Rulesets, err = c.readRulesets(ctx, owner, repo); return }},
 	}
-	if scope.Teams {
-		v, err := c.readTeams(ctx, owner, repo)
-		if err != nil {
-			return nil, fmt.Errorf("read team access: %w", err)
+	for _, r := range readers {
+		if r.wanted {
+			if err := s.read([]string{r.name}, r.read); err != nil {
+				return nil, err
+			}
 		}
-		s.Teams = v
-	}
-	if scope.Rulesets {
-		v, err := c.readRulesets(ctx, owner, repo)
-		if err != nil {
-			return nil, fmt.Errorf("read rulesets: %w", err)
-		}
-		s.Rulesets = v
 	}
 	if err := c.readAdditional(ctx, owner, repo, scope, s); err != nil {
 		return nil, err
 	}
+	s.markMissing(scope.Desired)
 	s.Warnings = append(s.Warnings, c.legacyWarnings(ctx, owner, repo)...)
 	return s, nil
 }
@@ -181,66 +155,6 @@ func unknownRepositoryFields(raw map[string]json.RawMessage) []string {
 	}
 	sort.Strings(fields)
 	return fields
-}
-
-func (c *Client) readSecurity(ctx context.Context, owner, repo string, analysisRaw json.RawMessage) (*config.SecuritySettings, error) {
-	alerts, err := c.booleanEndpoint(ctx, repoPath(owner, repo, "/vulnerability-alerts"))
-	if err != nil {
-		return nil, err
-	}
-	var fixesState struct {
-		Enabled bool `json:"enabled"`
-		Paused  bool `json:"paused"`
-	}
-	_, err = c.request(ctx, http.MethodGet, repoPath(owner, repo, "/automated-security-fixes"), nil, &fixesState)
-	fixes := fixesState.Enabled
-	if err != nil {
-		return nil, err
-	}
-	v := &config.SecuritySettings{VulnerabilityAlerts: &alerts, AutomatedSecurityFixes: &fixes}
-	if len(analysisRaw) > 0 && string(analysisRaw) != "null" {
-		_ = json.Unmarshal(analysisRaw, v)
-	}
-	return v, nil
-}
-
-func (c *Client) booleanEndpoint(ctx context.Context, path string) (bool, error) {
-	_, err := c.request(ctx, http.MethodGet, path, nil, nil)
-	if err == nil {
-		return true, nil
-	}
-	if IsStatus(err, http.StatusNotFound) {
-		return false, nil
-	}
-	return false, err
-}
-
-func (c *Client) readActions(ctx context.Context, owner, repo string, readSelected bool) (*config.ActionsSettings, error) {
-	var permissions struct {
-		Enabled            bool   `json:"enabled"`
-		AllowedActions     string `json:"allowed_actions"`
-		SHAPinningRequired *bool  `json:"sha_pinning_required"`
-	}
-	if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, "/actions/permissions"), nil, &permissions); err != nil {
-		return nil, err
-	}
-	v := &config.ActionsSettings{Enabled: &permissions.Enabled, AllowedActions: &permissions.AllowedActions, SHAPinningRequired: permissions.SHAPinningRequired}
-	if permissions.AllowedActions == "selected" || readSelected {
-		var selected config.SelectedActions
-		if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, "/actions/permissions/selected-actions"), nil, &selected); err != nil {
-			return nil, err
-		}
-		v.SelectedActions = &selected
-	}
-	var workflow struct {
-		Default string `json:"default_workflow_permissions"`
-		Approve bool   `json:"can_approve_pull_request_reviews"`
-	}
-	if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, "/actions/permissions/workflow"), nil, &workflow); err != nil {
-		return nil, err
-	}
-	v.DefaultWorkflowPermissions, v.CanApprovePullRequestReviews = &workflow.Default, &workflow.Approve
-	return v, nil
 }
 
 func (c *Client) readCollaborators(ctx context.Context, owner, repo string) (map[string]Collaborator, error) {
@@ -331,21 +245,24 @@ func (c *Client) readRulesets(ctx context.Context, owner, repo string) (map[stri
 			continue
 		}
 		var detail struct {
-			ID           int64                `json:"id"`
-			Name         string               `json:"name"`
-			Target       string               `json:"target"`
-			Enforcement  string               `json:"enforcement"`
-			BypassActors []config.BypassActor `json:"bypass_actors"`
-			Conditions   config.Conditions    `json:"conditions"`
-			Rules        []config.Rule        `json:"rules"`
+			ID           int64                 `json:"id"`
+			Name         string                `json:"name"`
+			Target       string                `json:"target"`
+			Enforcement  string                `json:"enforcement"`
+			BypassActors *[]config.BypassActor `json:"bypass_actors"`
+			Conditions   config.Conditions     `json:"conditions"`
+			Rules        []config.Rule         `json:"rules"`
 		}
 		if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, "/rulesets/"+intPath(summary.ID)), nil, &detail); err != nil {
 			return nil, err
 		}
+		if detail.BypassActors == nil {
+			return nil, &unreadableState{reason: "ruleset bypass actors are not visible; write access to the ruleset is required"}
+		}
 		if _, exists := result[detail.Name]; exists {
 			return nil, fmt.Errorf("repository contains duplicate ruleset name %q; names must be unique for portable reconciliation", detail.Name)
 		}
-		result[detail.Name] = Ruleset{ID: detail.ID, Value: config.Ruleset{Target: detail.Target, Enforcement: detail.Enforcement, BypassActors: detail.BypassActors, Conditions: detail.Conditions, Rules: detail.Rules}}
+		result[detail.Name] = Ruleset{ID: detail.ID, Value: config.Ruleset{Target: detail.Target, Enforcement: detail.Enforcement, BypassActors: *detail.BypassActors, Conditions: detail.Conditions, Rules: detail.Rules}}
 	}
 	return result, nil
 }

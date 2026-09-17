@@ -95,9 +95,9 @@ Multi-select arrays are compared as selections rather than ordered lists, so a d
 
 Property definitions stay under organization or enterprise control. **ghrepocfg** does not create definitions, change allowed values, relax edit restrictions, or alter whether a property is required. Names and allowed values must already exist in the destination organization or enterprise, which can limit portability between organizations.
 
-Reading values requires repository read access. Writing requires repository administration or GitHub's repository-level **Custom properties: write** permission, and the property definition must allow the caller to edit its value. Restricted values can return `403 Forbidden`; values outside a select property's allowed set can return `422 Validation Failed`.
+Reading values requires repository read access. Fine-grained token writes require **Custom properties: write**, alongside an authorized account role, and the property definition must allow the caller to edit its value. Restricted values can return `403 Forbidden`; values outside a select property's allowed set can return `422 Validation Failed`.
 
-Each changed property is submitted independently. If one value is restricted or invalid, that path is reported as failed while unrelated property changes continue. A partially successful apply exits with an error and retains successful changes.
+Each changed property is submitted independently. Permission-denied writes are skipped with warnings by default, while unrelated property changes continue. Invalid values remain failures. `--strict` stops on denied or failed writes and verifies managed state; successful earlier changes are retained.
 
 ## Security
 
@@ -190,7 +190,7 @@ GitHub returns `409 Conflict` when selected-action details are read while select
 
 The policy flags cannot both be true. Both false means unrestricted deployment branches. Patterns require custom branch policies; creating an environment with patterns and no explicit policy selects custom policies. Switching away from custom policies stops managing their patterns. Reviewers refer to existing numeric user/team IDs. Reviewers and wait timers depend on GitHub plan and visibility.
 
-Environment updates preserve omitted protection settings. Creation precedes policy and variable requests. One environment is one planned operation; a child request failure can leave earlier steps applied. Custom deployment protection integrations are outside this schema and are not removed from retained environments.
+Environment updates preserve omitted protection settings. Creation precedes policy and variable requests. Protection settings and branch/tag policies form one operation; variable changes are separate operations and do not rewrite protections. A child request failure can leave earlier steps applied. Custom deployment protection integrations are outside this schema and are not removed from retained environments.
 
 ## Variables
 
@@ -207,7 +207,7 @@ Actions and environment variables contain readable string values. Quote numeric 
 | `cname` | Custom domain; `""` removes it |
 | `https_enforced` | boolean |
 
-Site settings imply that a site should exist. `enabled: true` without publishing settings creates a workflow-based site. `enabled: false` must appear without other Pages settings. Workflow definitions, content, DNS records, and certificate provisioning are not managed. A missing site exports as `enabled: false`; administration visibility is required. HTTPS/domain changes may need GitHub's asynchronous provisioning to complete.
+Site settings imply that a site should exist. `enabled: true` without publishing settings creates a workflow-based site. `enabled: false` must appear without other Pages settings. Workflow definitions, content, DNS records, and certificate provisioning are not managed. An ambiguous `404` does not establish that a site is disabled: the Pages section is unavailable and skipped, or rejected with `--strict`. HTTPS/domain changes may need GitHub's asynchronous provisioning to complete.
 
 ## Labels, Autolinks, and Deploy Keys
 

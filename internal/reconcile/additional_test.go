@@ -39,7 +39,7 @@ func TestAdditionalPlansPreserveOmittedFields(t *testing.T) {
 		t.Fatalf("body=%v", body)
 	}
 }
-func TestEnvironmentPartialUpdatePreservesProtection(t *testing.T) {
+func TestEnvironmentVariablesDoNotRewriteProtection(t *testing.T) {
 	reviewers := []config.EnvironmentReviewer{{Type: "Team", ID: 42}}
 	vars := map[string]string{"REGION": "new"}
 	d := &config.Config{Environments: &map[string]config.Environment{"production": {Variables: &vars}}}
@@ -50,9 +50,10 @@ func TestEnvironmentPartialUpdatePreservesProtection(t *testing.T) {
 	if len(failed) > 0 {
 		t.Fatal(failed)
 	}
-	if f.environment.WaitTimer == nil || *f.environment.WaitTimer != 15 || f.environment.Reviewers == nil || len(*f.environment.Reviewers) != 1 || !f.environment.DeploymentBranchPolicy.ProtectedBranches {
-		t.Fatalf("protection lost: %+v", f.environment)
+	if len(f.calls) != 1 || f.calls[0] != "PATCH /environments/production/variables/REGION" {
+		t.Fatalf("variable-only apply rewrote environment: %v", f.calls)
 	}
+
 }
 func TestCollectionReplacementStopsAfterFailedDelete(t *testing.T) {
 	d := &config.Config{Autolinks: &map[string]config.Autolink{"ENG-": {URLTemplate: "https://new/<num>"}}}

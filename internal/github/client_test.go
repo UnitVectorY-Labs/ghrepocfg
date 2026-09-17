@@ -178,12 +178,15 @@ func TestPermissionNormalization(t *testing.T) {
 	}
 }
 
-func TestReadRequiresAdminForAuthoritativeRulesets(t *testing.T) {
+func TestReadRulesetsWithoutAdmin(t *testing.T) {
 	c := testClient(func(r *http.Request) (*http.Response, error) {
-		return response(http.StatusOK, `{"permissions":{"admin":false}}`, make(http.Header)), nil
+		if r.URL.Path == "/repos/acme/repo" {
+			return response(200, `{"permissions":{"admin":false}}`, nil), nil
+		}
+		return response(200, `[]`, nil), nil
 	})
-	_, err := c.Read(context.Background(), "acme", "repo", ReadScope{Rulesets: true})
-	if err == nil || !strings.Contains(err.Error(), "repository admin access is required") {
-		t.Fatalf("Read() error = %v", err)
+	state, err := c.Read(context.Background(), "acme", "repo", ReadScope{Rulesets: true})
+	if err != nil || state.Rulesets == nil || len(state.Unavailable) != 0 {
+		t.Fatalf("state=%+v err=%v", state, err)
 	}
 }

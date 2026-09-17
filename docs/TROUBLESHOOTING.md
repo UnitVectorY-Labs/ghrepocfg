@@ -40,11 +40,11 @@ If the GitHub CLI is unavailable, set `GH_TOKEN` or `GITHUB_TOKEN`. See [Install
 
 ## GitHub Returns 403 or 404
 
-Verify that the token can see the repository and has the permissions required by every managed section. Full export and authoritative security, access, and ruleset sections require repository admin visibility.
+Verify repository selection, account role, organization policy, and the endpoint-specific token permissions in [Permissions](PERMISSIONS.md). There is no blanket admin requirement for reads.
 
-Custom-property writes additionally require repository administration or the repository-level **Custom properties: write** permission, and the organization or enterprise definition must allow the caller to edit values.
+Custom-property reads require Metadata read. Fine-grained tokens need Custom properties write to update values, and the account role/property definition must also permit editing.
 
-GitHub may use `404` to hide an inaccessible resource. **ghrepocfg** fails rather than treating ambiguous authoritative state as empty.
+GitHub may use `404` to hide an inaccessible resource. **ghrepocfg** marks that state unavailable instead of treating it as empty or disabled. Default operation warns and continues; `--strict` fails. Rate-limit `403` responses remain operational errors.
 
 ## GitHub Returns 409 for Selected Actions
 
@@ -66,7 +66,8 @@ For custom properties, confirm that the property exists, the value is allowed, t
 ## Dry-Run Returns a Nonzero Status
 
 - Exit `2` means drift or export-file changes were successfully detected.
-- Exit `1` means validation, authentication, permission, API, or another operational failure.
+- Exit `1` means an operational failure or incomplete strict evaluation.
+- Default exit `0` can include permission skips; inspect warnings or JSON `complete` and `skipped`.
 
 Inspect JSON without treating expected drift as an operational failure by handling exit `2` separately. See [Examples](EXAMPLES.md#use-json-in-ci).
 
@@ -84,13 +85,13 @@ Unknown keys are intentionally fatal. Check spelling and compare the key with [C
 
 ## Additional Settings Are Omitted from Full Export
 
-Read the warning accompanying the omitted group. Public-fork approval policy is unavailable for private repositories; private vulnerability reporting, CodeQL setup, and deployment protections depend on visibility, licensing, and owner policy. Full discovery omits unavailable groups, but an existing YAML section requests an authoritative read and therefore fails instead. Remove a section only when you intend to stop managing it.
+Read the warning accompanying the omitted group. Public-fork approval policy is unavailable for private repositories; private vulnerability reporting, CodeQL setup, and deployment protections depend on visibility, licensing, and owner policy. Full discovery omits inaccessible groups; a scoped refresh retains previous values with a warning. Strict mode rejects either incomplete result. Remove a section only when you intend to stop managing it.
 
 An owner may forbid a private-fork workflow policy change with `422` even though its GET endpoint is readable. The application reports the failure and continues independent changes. It never changes organization policy to bypass the restriction.
 
 ## A Replacement or Environment Change Partially Failed
 
-Autolinks and deploy keys require delete-then-create replacement. Environment operations create/update the environment before changing branch/tag policies and variables. A later failure does not roll back earlier API calls. Correct the reported error and rerun dry-run; live state determines the remaining work.
+Autolinks and deploy keys require delete-then-create replacement. Environment protection operations precede dependent creation requests. Variable-only updates use the variable API without rewriting environment protection settings. A later failure does not roll back earlier API calls. Correct the reported error and rerun dry-run; live state determines the remaining work.
 
 ## Cache Limit Write Is Accepted but Does Not Take Effect
 
@@ -99,3 +100,9 @@ GitHub can return success for a cache-limit update while the GET endpoint still 
 ## Private Actions Policies on a Public Repository
 
 Full export automatically omits `actions.private_fork_workflows` and `actions.access_level` for public repositories without warnings. If a configuration copied from a private repository includes those fields, remove them before applying or refreshing that scoped configuration against a public repository. These policies do not apply there; the application reports this before calling their endpoints.
+
+## Strict Verification Fails
+
+A successful HTTP write does not prove that GitHub made the requested value effective. Strict apply reads the managed state again and fails on drift or incomplete verification. Code scanning setup receives bounded polling; other mismatches fail immediately. Pending collaborator invitations are reported as pending rather than verified access. Earlier mutations remain applied: inspect the named paths and rerun dry-run after correcting access or policy.
+
+A `404` from Pages or vulnerability-alert status is ambiguous even when the repository is readable. The attribute is skipped instead of exported as disabled. Strict mode cannot certify that attribute until its state can be established.

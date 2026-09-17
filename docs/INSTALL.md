@@ -75,19 +75,8 @@ Or provide a token to the process environment. Tokens are sent only to `https://
 {: .highlight }
 A usable GitHub CLI credential takes precedence over token environment variables. Run without `gh` on `PATH` when an automation environment must use `GH_TOKEN` or `GITHUB_TOKEN` instead.
 
-## GitHub Permissions
+## Permissions
 
-Use the least privilege that covers every configured section.
+Grant only the permissions needed by the fields you manage. Fine-grained PATs and GitHub Apps use endpoint-specific repository permissions; account roles and organization policy still apply. Custom-property reads need Metadata read; writes need Custom properties write. Most Actions policy settings need Administration, while OIDC needs Actions and repository variables need Variables.
 
-| Feature | Read or dry-run | Apply |
-|---|---|---|
-| Repository settings and topics | Metadata read | Administration write |
-| Security settings | Repository admin visibility | Administration or applicable security-feature write access |
-| Actions policy | Actions policy read access | Administration or Actions policy write access |
-| Direct collaborators and invitations | Repository administration read | Administration write |
-| Team access | Repository administration and organization Members read | Administration write and Members read |
-| Repository rulesets | Repository administration read | Administration write |
-
-Full export and authoritative security, collaborator, team, or ruleset management require repository admin access. This prevents GitHub permission filtering from being mistaken for an empty desired collection.
-
-Classic personal access tokens generally need `repo` for private repositories and organization scopes for team visibility. Fine-grained token permission names and feature licensing are enforced by GitHub.
+See [Permissions and partial access](PERMISSIONS.md) for the complete read/write matrix, classic-token scopes, and `--strict`. Default operation warns and skips inaccessible attributes; strict operation requires complete requested state.

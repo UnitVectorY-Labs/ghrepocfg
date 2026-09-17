@@ -126,7 +126,11 @@ func additionalChanges(p *Plan, owner, repo string, d *config.Config, s *github.
 					}
 				}
 				if wok {
-					return e.Mutate(ctx, owner, repo, http.MethodPost, "/autolinks", map[string]any{"key_prefix": name, "url_template": want.URLTemplate, "is_alphanumeric": want.IsAlphanumeric})
+					err := e.Mutate(ctx, owner, repo, http.MethodPost, "/autolinks", map[string]any{"key_prefix": name, "url_template": want.URLTemplate, "is_alphanumeric": want.IsAlphanumeric})
+					if cok {
+						return github.AfterMutation(err)
+					}
+					return err
 				}
 				return nil
 			}})
@@ -155,7 +159,11 @@ func additionalChanges(p *Plan, owner, repo string, d *config.Config, s *github.
 					}
 				}
 				if wok {
-					return e.Mutate(ctx, owner, repo, http.MethodPost, "/keys", map[string]any{"title": name, "key": want.Key, "read_only": want.ReadOnly})
+					err := e.Mutate(ctx, owner, repo, http.MethodPost, "/keys", map[string]any{"title": name, "key": want.Key, "read_only": want.ReadOnly})
+					if cok {
+						return github.AfterMutation(err)
+					}
+					return err
 				}
 				return nil
 			}})
@@ -172,8 +180,25 @@ func additionalChanges(p *Plan, owner, repo string, d *config.Config, s *github.
 				}})
 				continue
 			}
+			variables := want.Variables
+			want.Variables = nil
+			curVariables := cur.Variables
+			cur.Variables = nil
+			addVariables := func() {
+				start := len(p.Changes)
+				variableChanges(p, owner, repo, "environments."+name+".variables", "/environments/"+url.PathEscape(name)+"/variables", variables, curVariables, e)
+				if !cok {
+					if p.dependencies == nil {
+						p.dependencies = map[string]string{}
+					}
+					for _, child := range p.Changes[start:] {
+						p.dependencies[child.Path] = "environments." + name
+					}
+				}
+			}
 			before := config.Project(&want, &cur)
 			if cok && environmentEqual(want, *before) {
+				addVariables()
 				continue
 			}
 			// The environment endpoint resets omitted protection settings. Merge the
@@ -201,6 +226,7 @@ func additionalChanges(p *Plan, owner, repo string, d *config.Config, s *github.
 				op = Add
 			}
 			add(p, Change{op, "environments." + name, optional(cok, before), want, func(ctx context.Context) error { return e.SetEnvironment(ctx, owner, repo, name, effective) }})
+			addVariables()
 		}
 	}
 }
@@ -245,7 +271,11 @@ func pagesChanges(p *Plan, owner, repo string, want, got *config.PagesSettings, 
 		if len(body) == 0 {
 			return nil
 		}
-		return e.Mutate(ctx, owner, repo, http.MethodPut, "/pages", body)
+		err := e.Mutate(ctx, owner, repo, http.MethodPut, "/pages", body)
+		if !exists {
+			return github.AfterMutation(err)
+		}
+		return err
 	}})
 }
 func variableChanges(p *Plan, owner, repo, label, path string, want, got *map[string]string, e Executor) {

@@ -1,5 +1,5 @@
-// Package reconcile turns a strictly validated desired config and a fully read
-// GitHub state into a structured, executable plan.
+// Package reconcile builds executable plans from validated configuration and
+// available GitHub state, preserving unknown attributes as explicit skips.
 package reconcile
 
 import (
@@ -32,11 +32,14 @@ type Change struct {
 }
 
 type Plan struct {
-	Repository string   `json:"repository"`
-	Drift      bool     `json:"drift"`
-	Changes    []Change `json:"changes"`
-	Warnings   []string `json:"warnings,omitempty"`
-	Unmanaged  []string `json:"unmanaged,omitempty"`
+	dependencies map[string]string
+	Complete     bool                 `json:"complete"`
+	Skipped      []github.Unavailable `json:"skipped,omitempty"`
+	Repository   string               `json:"repository"`
+	Drift        bool                 `json:"drift"`
+	Changes      []Change             `json:"changes"`
+	Warnings     []string             `json:"warnings,omitempty"`
+	Unmanaged    []string             `json:"unmanaged,omitempty"`
 }
 
 type Executor interface {
@@ -61,7 +64,17 @@ type Executor interface {
 }
 
 func Build(owner, repo string, desired *config.Config, current *github.State, exec Executor, verbose bool) *Plan {
-	p := &Plan{Repository: owner + "/" + repo, Changes: make([]Change, 0), Warnings: append([]string(nil), current.Warnings...)}
+	desired = current.Available(desired)
+	p := &Plan{Complete: len(current.Unavailable) == 0, Skipped: append([]github.Unavailable(nil), current.Unavailable...), Repository: owner + "/" + repo, Changes: make([]Change, 0), Warnings: append([]string(nil), current.Warnings...)}
+	if current.Repository == nil {
+		current.Repository = &config.RepositorySettings{}
+	}
+	if current.Security == nil {
+		current.Security = &config.SecuritySettings{}
+	}
+	if current.Actions == nil {
+		current.Actions = &config.ActionsSettings{}
+	}
 	if desired.Repository != nil {
 		repositoryChanges(p, owner, repo, desired.Repository, current.Repository, exec)
 	}
@@ -104,7 +117,7 @@ func Build(owner, repo string, desired *config.Config, current *github.State, ex
 }
 
 func customPropertyChanges(p *Plan, owner, repo string, want, got map[string]config.CustomPropertyValue, e Executor) {
-	keys := make([]string, 0, len(want)+len(got))
+	keys := make([]string, 0, len(want))
 	seen := make(map[string]bool, len(want))
 	for name := range want {
 		seen[name] = true
@@ -273,7 +286,7 @@ func normalizeAccess(in map[string]config.Access) map[string]struct {
 }
 func collaboratorChanges(p *Plan, owner, repo string, want map[string]config.Access, got map[string]github.Collaborator, e Executor) {
 	w := normalizeAccess(want)
-	keys := make([]string, 0, len(w)+len(got))
+	keys := make([]string, 0, len(w))
 	seen := map[string]bool{}
 	for k := range w {
 		seen[k] = true
@@ -304,7 +317,7 @@ func collaboratorChanges(p *Plan, owner, repo string, want map[string]config.Acc
 }
 func teamChanges(p *Plan, owner, repo string, want map[string]config.Access, got map[string]github.Team, e Executor) {
 	w := normalizeAccess(want)
-	keys := make([]string, 0, len(w)+len(got))
+	keys := make([]string, 0, len(w))
 	seen := map[string]bool{}
 	for k := range w {
 		seen[k] = true
@@ -333,7 +346,7 @@ func teamChanges(p *Plan, owner, repo string, want map[string]config.Access, got
 	}
 }
 func rulesetChanges(p *Plan, owner, repo string, want map[string]config.Ruleset, got map[string]github.Ruleset, e Executor) {
-	keys := make([]string, 0, len(want)+len(got))
+	keys := make([]string, 0, len(want))
 	seen := map[string]bool{}
 	for k := range want {
 		seen[k] = true
@@ -478,13 +491,13 @@ type Failure struct {
 	Error string `json:"error"`
 }
 
+// Execute reports skipped operations as failures for callers using the original
+// two-result interface. CLI callers use ExecuteWithPolicy for partial results.
 func (p *Plan) Execute(ctx context.Context) (succeeded []string, failed []Failure) {
-	for _, c := range p.Changes {
-		if err := c.apply(ctx); err != nil {
-			failed = append(failed, Failure{c.Path, err.Error()})
-		} else {
-			succeeded = append(succeeded, c.Path)
-		}
+	result := p.ExecuteWithPolicy(ctx, false)
+	failed = result.Failed
+	for _, skip := range result.Skipped {
+		failed = append(failed, Failure{Path: skip.Path, Error: "skipped: " + skip.Reason})
 	}
-	return
+	return result.Applied, failed
 }

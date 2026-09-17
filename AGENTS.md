@@ -1,5 +1,7 @@
-This is an idiomatic Go application.
+# Development requirements
 
-Maintain docs for the changes in docs/ with a marketing style README.md file and then an idiomatic documentation file for a high quality docs for each aspect someone would expect.
-
-Prefer the standard Go library and idiomatic Go practices for implementation.
+- Write idiomatic Go; prefer the standard library.
+- Keep `docs/` current with a concise, marketing-oriented `README.md` and clear reference documentation for supported behavior.
+- Export and apply must degrade gracefully on permission denial: continue independent work and log accurate, concise warnings identifying skipped attributes. Never treat unreadable state as empty, false, or disabled.
+- Keep `--strict` optional and off by default. Strict export requires complete requested state; strict apply succeeds only when all managed values are applied and verified. Do not imply atomicity or rollback.
+- Test meaningful behavior changes and run the relevant checks.
