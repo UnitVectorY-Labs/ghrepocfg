@@ -35,6 +35,8 @@ Apply performs these stages in order:
 
 No mutation is planned from unreadable state. Readers record unavailable paths separately from values; export and reconciliation consult this metadata. Permission denials and ambiguous resource absence skip affected paths by default. Other read failures abort before the prompt. `--strict` also aborts on incomplete reads.
 
+Collection planning starts with capacity for the desired keys and appends additional live keys as needed. It avoids adding collection lengths when computing allocation sizes, preventing integer overflow in that calculation.
+
 ## Idempotence
 
 Comparisons normalize:

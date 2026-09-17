@@ -117,7 +117,7 @@ func Build(owner, repo string, desired *config.Config, current *github.State, ex
 }
 
 func customPropertyChanges(p *Plan, owner, repo string, want, got map[string]config.CustomPropertyValue, e Executor) {
-	keys := make([]string, 0, len(want)+len(got))
+	keys := make([]string, 0, len(want))
 	seen := make(map[string]bool, len(want))
 	for name := range want {
 		seen[name] = true
@@ -286,7 +286,7 @@ func normalizeAccess(in map[string]config.Access) map[string]struct {
 }
 func collaboratorChanges(p *Plan, owner, repo string, want map[string]config.Access, got map[string]github.Collaborator, e Executor) {
 	w := normalizeAccess(want)
-	keys := make([]string, 0, len(w)+len(got))
+	keys := make([]string, 0, len(w))
 	seen := map[string]bool{}
 	for k := range w {
 		seen[k] = true
@@ -317,7 +317,7 @@ func collaboratorChanges(p *Plan, owner, repo string, want map[string]config.Acc
 }
 func teamChanges(p *Plan, owner, repo string, want map[string]config.Access, got map[string]github.Team, e Executor) {
 	w := normalizeAccess(want)
-	keys := make([]string, 0, len(w)+len(got))
+	keys := make([]string, 0, len(w))
 	seen := map[string]bool{}
 	for k := range w {
 		seen[k] = true
@@ -346,7 +346,7 @@ func teamChanges(p *Plan, owner, repo string, want map[string]config.Access, got
 	}
 }
 func rulesetChanges(p *Plan, owner, repo string, want map[string]config.Ruleset, got map[string]github.Ruleset, e Executor) {
-	keys := make([]string, 0, len(want)+len(got))
+	keys := make([]string, 0, len(want))
 	seen := map[string]bool{}
 	for k := range want {
 		seen[k] = true
