@@ -1,6 +1,7 @@
 name: ghrepocfg
 default_branch: main
 config:
+  osv: sarif
   description: "Declaratively manage, review, export, and synchronize GitHub repository settings from a configuration file."
   license: MIT
   language: go
