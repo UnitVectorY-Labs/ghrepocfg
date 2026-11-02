@@ -48,12 +48,17 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, version strin
 	case "help", "--help", "-h":
 		usage(stdout)
 		return exitOK
+	case "secrets":
+		if len(args) < 2 || args[1] != "apply" {
+			return reportError(stderr, errors.New("expected secrets apply [flags]"))
+		}
+		return runSecretsApply(args[2:], stdin, stdout, stderr)
 	case "apply":
 		return runApply(args[1:], stdin, stdout, stderr)
 	case "export":
 		return runExport(args[1:], stdout, stderr)
 	default:
-		return reportError(stderr, fmt.Errorf("unknown command %q (expected apply or export)", args[0]))
+		return reportError(stderr, fmt.Errorf("unknown command %q (expected apply, export, or secrets apply)", args[0]))
 	}
 }
 
@@ -61,6 +66,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, `Usage:
   ghrepocfg export [--repo OWNER/REPO] [--config PATH] [--full] [--dry-run]
   ghrepocfg apply  [--repo OWNER/REPO] [--config PATH] [--dry-run] [-y]
+  ghrepocfg secrets apply [--repo OWNER/REPO] [--config PATH] [--dry-run] [-y]
 
 Common options:
   -R, --repo OWNER/REPO  target repository (or GHREPOCFG_REPO)
@@ -83,7 +89,7 @@ func parseFlags(command string, args []string, stderr io.Writer) (options, error
 	fs.BoolVar(&o.json, "json", false, "JSON output")
 	fs.BoolVar(&o.dryRun, "dry-run", false, "plan without writing")
 	fs.BoolVar(&o.strict, "strict", false, "require complete reads and verified apply results")
-	if command == "apply" {
+	if command == "apply" || command == "secrets apply" {
 		fs.BoolVar(&o.yes, "yes", false, "approve all changes")
 		fs.BoolVar(&o.yes, "y", false, "approve all changes")
 	}
@@ -230,7 +236,7 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 		return reportError(stderr, errors.New("export --dry-run requires a file destination; use --config PATH"))
 	}
 	var base *config.Config
-	if destination != "" && !o.full {
+	if destination != "" {
 		if _, err := os.Stat(destination); err == nil {
 			base, err = config.Load(destination)
 			if err != nil {
@@ -268,7 +274,21 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return reportError(stderr, actionableAPIError(err))
 	}
-	printUnavailable(stderr, "export", state.Unavailable, !full)
+	if full {
+		state.Warnings = append(state.Warnings, "Secret values are excluded from discovery; only existing encrypted YAML entries can be retained.")
+	}
+	// Ciphertext cannot be rediscovered, even when replacing the readable scope.
+	retainedSecrets := map[string]bool{}
+	for _, secretScope := range base.SecretScopes() {
+		path := secretScope.Application + ".secrets"
+		retainedSecrets[path] = true
+		if len(*secretScope.Entries) > 0 {
+			state.Omit([]string{secretScope.Application, "secrets"}, "secret values cannot be exported; existing encrypted payloads retained")
+		}
+	}
+	for _, unavailable := range state.Unavailable {
+		printUnavailable(stderr, "export", []github.Unavailable{unavailable}, !full || retainedSecrets[unavailable.Path])
+	}
 	if o.strict && len(state.Unavailable) > 0 {
 		if o.json {
 			writeJSON(stdout, map[string]any{"repository": owner + "/" + repo, "complete": false, "skipped": state.Unavailable})
@@ -281,6 +301,7 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 	} else {
 		exported = exportconfig.ScopedFromState(base, state)
 	}
+	exported.PreserveSecrets(base)
 	b, err := config.Marshal(exported)
 	if err != nil {
 		return reportError(stderr, err)

@@ -15,8 +15,11 @@ import (
 )
 
 // Config is the complete v1 configuration. A nil section is unmanaged, while
-// a present collection (including an empty one) is authoritative.
+// a present collection (including an empty one) is authoritative, except Secrets.
 type Config struct {
+	Agents           *SecretSettings                 `yaml:"agents,omitempty" json:"agents,omitempty"`
+	Codespaces       *SecretSettings                 `yaml:"codespaces,omitempty" json:"codespaces,omitempty"`
+	Dependabot       *SecretSettings                 `yaml:"dependabot,omitempty" json:"dependabot,omitempty"`
 	Environments     *map[string]Environment         `yaml:"environments,omitempty" json:"environments,omitempty"`
 	Pages            *PagesSettings                  `yaml:"pages,omitempty" json:"pages,omitempty"`
 	Labels           *map[string]Label               `yaml:"labels,omitempty" json:"labels,omitempty"`
@@ -149,19 +152,20 @@ type BypassReviewer struct {
 }
 
 type ActionsSettings struct {
-	SHAPinningRequired           *bool                 `yaml:"sha_pinning_required,omitempty" json:"sha_pinning_required,omitempty"`
-	ArtifactAndLogRetentionDays  *int                  `yaml:"artifact_and_log_retention_days,omitempty" json:"artifact_and_log_retention_days,omitempty"`
-	ForkPRContributorApproval    *string               `yaml:"fork_pr_contributor_approval,omitempty" json:"fork_pr_contributor_approval,omitempty"`
-	PrivateForkWorkflows         *PrivateForkWorkflows `yaml:"private_fork_workflows,omitempty" json:"private_fork_workflows,omitempty"`
-	AccessLevel                  *string               `yaml:"access_level,omitempty" json:"access_level,omitempty"`
-	OIDC                         *OIDCSettings         `yaml:"oidc,omitempty" json:"oidc,omitempty"`
-	Cache                        *CacheSettings        `yaml:"cache,omitempty" json:"cache,omitempty"`
-	Variables                    *map[string]string    `yaml:"variables,omitempty" json:"variables,omitempty"`
-	Enabled                      *bool                 `yaml:"enabled,omitempty" json:"enabled,omitempty"`
-	AllowedActions               *string               `yaml:"allowed_actions,omitempty" json:"allowed_actions,omitempty"`
-	SelectedActions              *SelectedActions      `yaml:"selected_actions,omitempty" json:"selected_actions,omitempty"`
-	DefaultWorkflowPermissions   *string               `yaml:"default_workflow_permissions,omitempty" json:"default_workflow_permissions,omitempty"`
-	CanApprovePullRequestReviews *bool                 `yaml:"can_approve_pull_request_reviews,omitempty" json:"can_approve_pull_request_reviews,omitempty"`
+	Secrets                      *map[string]EncryptedSecret `yaml:"secrets,omitempty" json:"secrets,omitempty"`
+	SHAPinningRequired           *bool                       `yaml:"sha_pinning_required,omitempty" json:"sha_pinning_required,omitempty"`
+	ArtifactAndLogRetentionDays  *int                        `yaml:"artifact_and_log_retention_days,omitempty" json:"artifact_and_log_retention_days,omitempty"`
+	ForkPRContributorApproval    *string                     `yaml:"fork_pr_contributor_approval,omitempty" json:"fork_pr_contributor_approval,omitempty"`
+	PrivateForkWorkflows         *PrivateForkWorkflows       `yaml:"private_fork_workflows,omitempty" json:"private_fork_workflows,omitempty"`
+	AccessLevel                  *string                     `yaml:"access_level,omitempty" json:"access_level,omitempty"`
+	OIDC                         *OIDCSettings               `yaml:"oidc,omitempty" json:"oidc,omitempty"`
+	Cache                        *CacheSettings              `yaml:"cache,omitempty" json:"cache,omitempty"`
+	Variables                    *map[string]string          `yaml:"variables,omitempty" json:"variables,omitempty"`
+	Enabled                      *bool                       `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	AllowedActions               *string                     `yaml:"allowed_actions,omitempty" json:"allowed_actions,omitempty"`
+	SelectedActions              *SelectedActions            `yaml:"selected_actions,omitempty" json:"selected_actions,omitempty"`
+	DefaultWorkflowPermissions   *string                     `yaml:"default_workflow_permissions,omitempty" json:"default_workflow_permissions,omitempty"`
+	CanApprovePullRequestReviews *bool                       `yaml:"can_approve_pull_request_reviews,omitempty" json:"can_approve_pull_request_reviews,omitempty"`
 }
 
 type SelectedActions struct {
@@ -319,7 +323,7 @@ func rejectIntentionallyUnmanaged(b []byte) error {
 	for i := 0; i+1 < len(doc.Content); i += 2 {
 		key, val := doc.Content[i].Value, doc.Content[i+1]
 		if key == "secrets" {
-			return errors.New("invalid configuration: secrets are intentionally unmanaged because their values cannot be read from GitHub")
+			return errors.New("invalid configuration: secrets are intentionally unmanaged at the top level; use actions.secrets, agents.secrets, codespaces.secrets, or dependabot.secrets with encrypted payloads and ghrepocfg secrets apply")
 		}
 		if key != "repository" || val.Kind != yaml.MappingNode {
 			continue
@@ -340,10 +344,13 @@ func rejectIntentionallyUnmanaged(b []byte) error {
 }
 
 func (c *Config) Validate() error {
+	if err := c.validateSecrets(); err != nil {
+		return err
+	}
 	if err := c.validateAdditional(); err != nil {
 		return err
 	}
-	if c.Repository == nil && c.CustomProperties == nil && c.Security == nil && c.Actions == nil && c.Collaborators == nil && c.Teams == nil && c.Rulesets == nil && c.Environments == nil && c.Pages == nil && c.Labels == nil && c.Autolinks == nil && c.DeployKeys == nil {
+	if c.Agents == nil && c.Codespaces == nil && c.Dependabot == nil && c.Repository == nil && c.CustomProperties == nil && c.Security == nil && c.Actions == nil && c.Collaborators == nil && c.Teams == nil && c.Rulesets == nil && c.Environments == nil && c.Pages == nil && c.Labels == nil && c.Autolinks == nil && c.DeployKeys == nil {
 		return errors.New("invalid configuration: at least one managed section is required")
 	}
 	if c.CustomProperties != nil {

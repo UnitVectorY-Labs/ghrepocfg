@@ -74,14 +74,14 @@ A generated configuration should not be assumed to represent legacy protection s
 
 - Repository visibility and public/private/internal transitions
 - Repository archive state, deletion, transfer, name, and owner
-- Repository secrets or other write-only values
+- Secret value comparison/export, environment or organization secrets, and other write-only values (repository Actions, Agents, Codespaces, and Dependabot ciphertext can be deployed with [secrets apply](SECRETS.md))
 - Organization and enterprise configuration, including custom-property definitions and inherited rulesets
 - Legacy branch and tag protection mutation or migration
 - GitHub Enterprise Server and custom API base URLs
 - Webhooks, custom scanning patterns, custom deployment protection integrations, individual workflows/runners, and unlisted repository collections
 - Multi-repository orchestration inside the application
 
-Unsupported high-risk and secret keys are rejected with actionable validation errors rather than silently accepted.
+Unsupported high-risk and plaintext secret keys are rejected with actionable validation errors rather than silently accepted.
 
 ## API Behavior
 
@@ -102,6 +102,7 @@ All REST suffixes below are relative to `/repos/{owner}/{repo}`.
 | Retention, fork policies, sharing | GET/PUT `/actions/permissions/{artifact-and-log-retention,fork-pr-contributor-approval,fork-pr-workflows-private-repos,access}` |
 | OIDC | GET/PUT `/actions/oidc/customization/sub` |
 | Cache limits | GET/PUT `/actions/cache/{retention-limit,storage-limit}` |
+| Encrypted repository secrets | GET `/{app}/secrets/public-key`, PUT `/{app}/secrets/{name}` for `actions`, `agents`, `codespaces`, and `dependabot` via `secrets apply`; no value read-back |
 | Variables | GET/POST collection and PATCH/DELETE item under `/actions/variables` or `/environments/{name}/variables` |
 | Environments | GET list/detail, PUT/DELETE `/environments/{name}`; list/create/delete child `/deployment-branch-policies` |
 | Pages | GET/POST/PUT/DELETE `/pages` |

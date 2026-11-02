@@ -69,3 +69,7 @@ GitHub's cache-limit documentation currently names `admin:repository`, absent fr
 Warnings use `X-Accepted-GitHub-Permissions` when available, otherwise an endpoint-specific diagnostic hint. That header describes required permissions, not granted permissions. The client retains response headers for scope/rate-limit diagnostics. A readable repository does not prove that every child resource is readable.
 
 GitHub can use `404` to conceal access denial. Pages and vulnerability-alert status therefore remain unknown on an ambiguous `404`; they are not exported as disabled. A `403` rate limit must be retried after the limit resets, not ignored as an inaccessible attribute. See [GitHub REST troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api).
+
+## Encrypted Secrets
+
+The separate `secrets apply` command uses application-specific repository endpoints. Actions needs **Secrets: read/write**, Agents needs **Agent secrets: read/write**, and Dependabot needs **Dependabot secrets: read/write**. Codespaces needs **Codespaces secrets: write** even for public-key reads, plus repository admin access for writes. Permission denials warn and skip affected entries while independent uploads continue. Secret values cannot be compared or verified, so strict apply refuses configured secret uploads before mutation. See [Encrypted secrets](SECRETS.md) for export and command behavior.

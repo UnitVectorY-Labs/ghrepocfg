@@ -16,7 +16,7 @@ permalink: /how-it-works
 
 ## Desired State and Scope
 
-YAML presence defines the management boundary. A present scalar is managed, while an omitted scalar is untouched. A present collection is the complete desired collection, while an omitted collection is untouched.
+YAML presence defines the management boundary. A present scalar is managed, while an omitted scalar is untouched. A present collection is the complete desired collection, while an omitted collection is untouched. Application secret maps (`actions.secrets`, `agents.secrets`, `codespaces.secrets`, and `dependabot.secrets`) are exceptions: entries request explicit uploads and never prune omitted names.
 
 Ordinary export preserves this scope. `export --full` is the explicit operation that expands it.
 
@@ -32,6 +32,8 @@ Apply performs these stages in order:
 6. Render the complete plan.
 7. Confirm once unless `--yes` or `--dry-run` was supplied.
 8. Execute planned mutations.
+
+Ordinary apply does not upload write-only secrets; [secrets apply](SECRETS.md) is a separate, explicit deployment operation.
 
 No mutation is planned from unreadable state. Readers record unavailable paths separately from values; export and reconciliation consult this metadata. Permission denials and ambiguous resource absence skip affected paths by default. Other read failures abort before the prompt. `--strict` also aborts on incomplete reads.
 
@@ -77,4 +79,4 @@ Verbose apply reports readable repository fields that remain unmanaged. Verbose 
 
 ## Safety Boundaries
 
-The YAML schema cannot express repository visibility, archive state, deletion, transfer, owner, or name. Secrets are excluded because GitHub cannot return secret values for desired-state comparison. Organization settings and inherited rulesets are outside the repository-level boundary.
+The YAML schema cannot express repository visibility, archive state, deletion, transfer, owner, or name. Secret values cannot participate in desired-state comparison or strict verification; the separate `secrets apply` command uploads committed ciphertext without claiming value equality. Organization settings and inherited rulesets are outside the repository-level boundary.

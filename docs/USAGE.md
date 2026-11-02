@@ -19,6 +19,7 @@ permalink: /usage
 ```text
 ghrepocfg export [flags]
 ghrepocfg apply [flags]
+ghrepocfg secrets apply [flags]
 ghrepocfg version
 ```
 
@@ -56,6 +57,12 @@ ghrepocfg apply [--repo OWNER/REPO] [--config PATH] [--dry-run] [--strict] [-y]
 
 After approval, permission-denied writes are skipped with warnings and independent mutations continue. Other mutation errors remain failures. Strict mode stops on the first denied or failed write; successful earlier writes are not rolled back.
 
+## Encrypted Secret Deployment
+
+`ghrepocfg secrets apply` uploads named repository ciphertext from `actions.secrets`, `agents.secrets`, `codespaces.secrets`, and `dependabot.secrets`. Each section uses its own public key and API namespace. It supports the common apply flags, validates the target and current encryption key, and uploads every entry on each invocation. Dry-run exit `2` means uploads are planned, not detected value drift. Secret plans use a separate JSON shape with `preflight_complete`, `value_comparison`, and `uploads`.
+
+Ordinary `apply` warns and skips configured secrets; strict apply rejects them. `secrets apply --strict` also refuses nonempty secret entries before uploading because values cannot be verified. Export retains existing ciphertext, including with `--full`; strict export cannot refresh it and leaves the file unchanged. See [Encrypted secrets](SECRETS.md) for encryption commands, YAML, permission handling, and all limitations.
+
 ## Partial Access and Strict Mode
 
 Default export omits unreadable attributes from a new/full export. A scoped refresh retains their existing values and warns that they were not refreshed. Default apply skips unreadable attributes and permission-denied writes, continuing independent work. Unknown collections never become empty collections.
@@ -70,15 +77,15 @@ Use `--strict` in CI when exit `0` must mean that all configured state was evalu
 
 | Flag | Commands | Description |
 |---|---|---|
-| `-R`, `--repo OWNER/REPO` | export, apply | Target repository |
-| `--config PATH` | export, apply | YAML source or destination |
+| `-R`, `--repo OWNER/REPO` | export, apply, secrets apply | Target repository |
+| `--config PATH` | export, apply, secrets apply | YAML source or destination |
 | `--full` | export | Replace the existing management scope with all safely readable supported settings |
-| `--dry-run` | export, apply | Preview without writing or prompting |
-| `--strict` | export, apply | Require complete reads; verify all managed values after apply (default: off) |
-| `-y`, `--yes` | apply | Skip the confirmation prompt |
-| `--json` | export, apply | Emit structured dry-run output |
-| `-v`, `--verbose` | export, apply | Emit one level of additional diagnostics |
-| `-h`, `--help` | export, apply | Print command usage |
+| `--dry-run` | export, apply, secrets apply | Preview without writing or prompting |
+| `--strict` | export, apply, secrets apply | Require complete reads; verify all managed values after apply (default: off) |
+| `-y`, `--yes` | apply, secrets apply | Skip the confirmation prompt |
+| `--json` | export, apply, secrets apply | Emit structured dry-run output |
+| `-v`, `--verbose` | export, apply, secrets apply | Emit one level of additional diagnostics |
+| `-h`, `--help` | export, apply, secrets apply | Print command usage |
 
 Repeated verbose flags do not create additional verbosity levels. There is no quiet flag.
 
@@ -149,7 +156,7 @@ NO_COLOR=1 ghrepocfg apply --dry-run
 |---:|---|
 | `0` | Completed; default mode may have explicit permission skips |
 | `1` | Configuration, authentication, API, cancellation, mutation failure, or strict incompleteness |
-| `2` | Repository drift from `apply --dry-run`, or file changes from `export --dry-run` |
+| `2` | Repository drift from `apply --dry-run`, file changes from `export --dry-run`, or planned uploads from `secrets apply --dry-run` |
 
 Use a compiled binary when testing exit codes. The `go run` launcher converts a child exit status such as `2` into its own failure status.
 

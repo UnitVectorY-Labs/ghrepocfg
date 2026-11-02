@@ -24,7 +24,7 @@ Unknown keys at every modeled level are errors. Empty strings, `false`, `0`, `[]
 
 - A present scalar or object field is managed.
 - An omitted scalar or object field is unmanaged and remains unchanged.
-- A present collection is authoritative, including an empty collection.
+- A present collection is authoritative, including an empty collection, except application secret maps, which only upload named entries.
 - An omitted collection is entirely unmanaged.
 
 ## Top-Level Sections
@@ -34,7 +34,8 @@ Unknown keys at every modeled level are errors. Empty strings, `false`, `0`, `[]
 | `repository` | object | Each present field is managed independently |
 | `custom_properties` | map keyed by property name | Present map is authoritative |
 | `security` | object | Each present feature is managed independently |
-| `actions` | object | Each present field is managed independently |
+| `actions` | object | Each present field is managed independently; `secrets` is upload-only |
+| `agents`, `codespaces`, `dependabot` | object with a `secrets` map | Named encrypted repository secret uploads via `secrets apply`; no pruning |
 | `collaborators` | map keyed by GitHub login | Present map is authoritative |
 | `teams` | map keyed by organization team slug | Present map is authoritative |
 | `environments` | map keyed by environment name | Authoritative environment membership; omitted fields within a retained environment are unmanaged |
@@ -163,6 +164,7 @@ Omitted fields remain unmanaged. Setup changes can be asynchronous; rerun dry-ru
 | `cache.max_retention_days` | positive integer |
 | `cache.max_size_gb` | positive integer |
 | `variables` | authoritative map of variable names to string values |
+| `secrets` | map of encrypted repository Actions secret entries; deployed only by `secrets apply` |
 | `enabled` | boolean |
 | `allowed_actions` | `all`, `local_only`, `selected` |
 | `selected_actions.github_owned_allowed` | boolean |
@@ -194,7 +196,7 @@ Environment updates preserve omitted protection settings. Creation precedes poli
 
 ## Variables
 
-Actions and environment variables contain readable string values. Quote numeric and boolean-looking values. Names use letters, digits, and underscores, cannot start with a digit or `GITHUB_`, and are compared without case sensitivity. Empty maps delete the respective variable collection. Secrets and organization-level variables are not managed.
+Actions and environment variables contain readable string values. Quote numeric and boolean-looking values. Names use letters, digits, and underscores, cannot start with a digit or `GITHUB_`, and are compared without case sensitivity. Empty maps delete the respective variable collection. Organization-level variables are not managed. Repository Actions, Agents, Codespaces, and Dependabot secrets use a separate write-only deployment command; see [Encrypted secrets](SECRETS.md) for the `repository`, `key_id`, and `encrypted_value` entry fields, upload-only semantics, export preservation, and strict-mode limits.
 
 ## Pages
 
