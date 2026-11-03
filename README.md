@@ -4,7 +4,7 @@
 
 Declaratively manage, review, export, and synchronize GitHub repository settings from a configuration file.
 
-`ghrepocfg` captures supported repository settings as literal YAML, previews drift with explicit access warnings, and applies only what changed. It handles repository settings, custom properties, security controls, GitHub Actions policy, direct collaborators, team access, repository rulesets, deployment environments, Pages, labels, autolinks, and deploy keys in one standalone Go binary.
+`ghrepocfg` captures supported repository settings as literal YAML, previews drift with explicit access warnings, and applies only what changed. It also deploys committed, locally encrypted Actions, Agents, Codespaces, and Dependabot secrets through an explicit `secrets apply` command. It handles repository settings, custom properties, security controls, GitHub Actions policy, direct collaborators, team access, repository rulesets, deployment environments, Pages, labels, autolinks, and deploy keys in one standalone Go binary.
 
 ```console
 $ ghrepocfg export --repo acme/reference --config .ghrepocfg.yaml
@@ -19,7 +19,7 @@ Changes:
     true -> false
 ```
 
-Configuration is safe by construction: unknown YAML keys fail, omitted scalar fields are untouched, managed collections are authoritative, visibility and archive state cannot be changed, and mutations require safely read state. Permission denials skip affected attributes while independent work continues; optional `--strict` requires complete reads and verifies applied values. Interactive output uses semantic color for fast scanning and honors [`NO_COLOR`](https://no-color.org/).
+Configuration is safe by construction: unknown YAML keys fail, omitted scalar fields are untouched, managed collections are authoritative (except upload-only secrets), visibility and archive state cannot be changed, and mutations require safely read state. Permission denials skip affected attributes while independent work continues; optional `--strict` requires complete reads and verifies applied values. Interactive output uses semantic color for fast scanning and honors [`NO_COLOR`](https://no-color.org/).
 
 ## Install
 
@@ -53,6 +53,7 @@ Use `--repo owner/repo` and `--config PATH` to apply one portable configuration 
 - [Usage](docs/USAGE.md)
 - [Examples](docs/EXAMPLES.md)
 - [Configuration reference](docs/CONFIGURATION.md)
+- [Encrypted secrets](docs/SECRETS.md)
 - [GitHub features](docs/GITHUB_FEATURES.md)
 - [How it works](docs/HOW_IT_WORKS.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)

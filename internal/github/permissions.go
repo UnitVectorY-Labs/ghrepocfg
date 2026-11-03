@@ -17,6 +17,14 @@ func RequiredPermission(method, path string) string {
 		if read {
 			permission = "Metadata"
 		}
+	case strings.Contains(path, "/agents/secrets"):
+		permission = "Agent secrets"
+	case strings.Contains(path, "/codespaces/secrets"):
+		permission, level = "Codespaces secrets", "write"
+	case strings.Contains(path, "/dependabot/secrets"):
+		permission = "Dependabot secrets"
+	case strings.Contains(path, "/actions/secrets"):
+		permission = "Secrets"
 	case strings.Contains(path, "/actions/variables"):
 		permission = "Variables"
 	case strings.Contains(path, "/environments/") && strings.Contains(path, "/variables"):

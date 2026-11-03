@@ -118,6 +118,24 @@ func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) 
 	if err := c.readAdditional(ctx, owner, repo, scope, s); err != nil {
 		return nil, err
 	}
+	if scope.Desired != nil {
+		// Secret-only application sections have no readable fields. Keep their empty
+		// containers available, and mark only configured write-only values unknown.
+		if scope.Desired.Agents != nil {
+			s.Additional.Agents = &config.SecretSettings{}
+		}
+		if scope.Desired.Codespaces != nil {
+			s.Additional.Codespaces = &config.SecretSettings{}
+		}
+		if scope.Desired.Dependabot != nil {
+			s.Additional.Dependabot = &config.SecretSettings{}
+		}
+		for _, secretScope := range scope.Desired.SecretScopes() {
+			if len(*secretScope.Entries) > 0 {
+				s.Omit([]string{secretScope.Application, "secrets"}, "secret values cannot be read or verified; deploy separately with ghrepocfg secrets apply")
+			}
+		}
+	}
 	s.markMissing(scope.Desired)
 	s.Warnings = append(s.Warnings, c.legacyWarnings(ctx, owner, repo)...)
 	return s, nil

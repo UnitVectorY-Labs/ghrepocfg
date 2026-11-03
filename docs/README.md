@@ -11,6 +11,8 @@ Declaratively export, review, and reconcile GitHub repository settings from one 
 
 **ghrepocfg** turns repository governance into a code-reviewable contract. It manages repository behavior, custom properties, security features, GitHub Actions policy, direct collaborators, team access, repository rulesets, deployment environments, Pages, labels, autolinks, and deploy keys while keeping every proposed change visible before it is applied.
 
+Deploy locally encrypted Actions, Agents, Codespaces, and Dependabot secrets from committed YAML with a dedicated upload command. GitHub keeps their values write-only; deployment plans make that limitation explicit. See [Encrypted secrets](SECRETS.md).
+
 Manage deployment approvals, cloud identity claims, build retention, and release controls alongside the settings your team already reviews. Export readable variables and publishing settings with the same explicit management boundary.
 
 ## Key Features
