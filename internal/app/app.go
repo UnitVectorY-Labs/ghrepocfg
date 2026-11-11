@@ -4,7 +4,8 @@ package app
 import (
 	"bufio"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"flag"
 	"fmt"
@@ -401,9 +402,8 @@ func confirm(r io.Reader, w io.Writer, n int) bool {
 	return line == "y" || line == "yes"
 }
 func writeJSON(w io.Writer, v any) {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	_ = enc.Encode(v)
+	_ = json.MarshalWrite(w, v, jsontext.WithIndent("  "))
+	_, _ = fmt.Fprintln(w)
 }
 func reportError(w io.Writer, err error) int { printError(w, err); return exitError }
 func actionableAPIError(err error) error {

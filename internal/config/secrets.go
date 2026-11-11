@@ -17,7 +17,7 @@ type EncryptedSecret struct {
 
 // SecretSettings holds repository secret uploads for an application.
 type SecretSettings struct {
-	Secrets *map[string]EncryptedSecret `yaml:"secrets,omitempty" json:"secrets,omitempty"`
+	Secrets *map[string]EncryptedSecret `yaml:"secrets,omitempty" json:"secrets,omitzero"`
 }
 
 // SecretScope identifies an application's configured uploads, including empty maps.
