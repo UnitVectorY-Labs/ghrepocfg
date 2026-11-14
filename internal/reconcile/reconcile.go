@@ -4,7 +4,7 @@ package reconcile
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"reflect"
 	"sort"
@@ -426,7 +426,9 @@ func valuesEqual(a, b any) bool {
 	cb, _ := canonicalJSON(b)
 	return string(ca) == string(cb)
 }
-func canonicalJSON(v any) ([]byte, error) { return json.Marshal(normalize(reflect.ValueOf(v))) }
+func canonicalJSON(v any) ([]byte, error) {
+	return json.Marshal(normalize(reflect.ValueOf(v)), json.Deterministic(true))
+}
 func normalize(v reflect.Value) any {
 	if !v.IsValid() {
 		return nil

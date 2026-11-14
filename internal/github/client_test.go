@@ -2,7 +2,7 @@ package github
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"net/http"
 	"strings"
@@ -69,7 +69,7 @@ func TestMutationRequestShapes(t *testing.T) {
 	c := testClient(func(r *http.Request) (*http.Response, error) {
 		var body map[string]any
 		if r.Body != nil {
-			_ = json.NewDecoder(r.Body).Decode(&body)
+			_ = json.UnmarshalRead(r.Body, &body)
 		}
 		requests <- seen{r.Method, r.URL.EscapedPath(), body}
 		return response(http.StatusNoContent, "", make(http.Header)), nil
@@ -188,5 +188,20 @@ func TestReadRulesetsWithoutAdmin(t *testing.T) {
 	state, err := c.Read(context.Background(), "acme", "repo", ReadScope{Rulesets: true})
 	if err != nil || state.Rulesets == nil || len(state.Unavailable) != 0 {
 		t.Fatalf("state=%+v err=%v", state, err)
+	}
+}
+
+func TestRequestRejectsAmbiguousJSON(t *testing.T) {
+	for name, body := range map[string]string{
+		"duplicate names": `{"id":1,"id":2}`,
+		"invalid UTF-8":   "{\"name\":\"\xff\"}",
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := testClient(func(*http.Request) (*http.Response, error) { return response(http.StatusOK, body, nil), nil })
+			var out map[string]any
+			if _, err := c.request(context.Background(), http.MethodGet, "/test", nil, &out); err == nil {
+				t.Fatal("accepted invalid JSON")
+			}
+		})
 	}
 }

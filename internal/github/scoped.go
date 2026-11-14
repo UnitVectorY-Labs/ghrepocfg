@@ -2,7 +2,8 @@ package github
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"net/http"
 	"reflect"
 	"strings"
@@ -33,7 +34,7 @@ func wantedField(scope ReadScope, section, field string) bool {
 	return false
 }
 
-func (c *Client) readSecurityScoped(ctx context.Context, owner, repo string, raw json.RawMessage, scope ReadScope, s *State) error {
+func (c *Client) readSecurityScoped(ctx context.Context, owner, repo string, raw jsontext.Value, scope ReadScope, s *State) error {
 	s.Security = &config.SecuritySettings{}
 	if len(raw) > 0 && string(raw) != "null" {
 		if err := json.Unmarshal(raw, s.Security); err != nil {
