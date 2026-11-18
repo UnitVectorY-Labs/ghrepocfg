@@ -2,7 +2,8 @@ package github
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -45,14 +46,14 @@ func (c *Client) Mutate(ctx context.Context, owner, repo, method, suffix string,
 // wrappedPaged follows pagination on APIs whose arrays are inside an object.
 func (c *Client) wrappedPaged(ctx context.Context, path, key string, out any) error {
 	next := path + "?per_page=100"
-	var all []json.RawMessage
+	var all []jsontext.Value
 	for next != "" {
-		var page map[string]json.RawMessage
+		var page map[string]jsontext.Value
 		h, err := c.request(ctx, http.MethodGet, next, nil, &page)
 		if err != nil {
 			return err
 		}
-		var items []json.RawMessage
+		var items []jsontext.Value
 		if err := json.Unmarshal(page[key], &items); err != nil {
 			return err
 		}
@@ -66,7 +67,10 @@ func (c *Client) wrappedPaged(ctx context.Context, path, key string, out any) er
 	return json.Unmarshal(b, out)
 }
 func (c *Client) readVariables(ctx context.Context, path string) (*map[string]string, error) {
-	var items []struct{ Name, Value string }
+	var items []struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	}
 	if err := c.wrappedPaged(ctx, path, "variables", &items); err != nil {
 		return nil, err
 	}
@@ -98,7 +102,7 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 	}
 
 	get := func(path string, out any) error {
-		var raw map[string]json.RawMessage
+		var raw map[string]jsontext.Value
 		if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, path), nil, &raw); err != nil {
 			return err
 		}
@@ -180,7 +184,9 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 			fn     func() error
 		}{
 			{"artifact_and_log_retention_days", a.ArtifactAndLogRetentionDays != nil, func() error {
-				var v struct{ Days int }
+				var v struct {
+					Days int `json:"days"`
+				}
 				if err := get("/actions/permissions/artifact-and-log-retention", &v); err != nil {
 					return err
 				}
@@ -290,9 +296,9 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 	}
 	if err := read("labels", d.Labels != nil, func() error {
 		var items []struct {
-			Name        string
-			Color       string
-			Description string
+			Name        string `json:"name"`
+			Color       string `json:"color"`
+			Description string `json:"description"`
 		}
 		if err := c.paged(ctx, repoPath(owner, repo, "/labels"), &items); err != nil {
 			return err
@@ -308,7 +314,7 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 	}
 	if err := read("autolinks", d.Autolinks != nil, func() error {
 		var items []struct {
-			ID     int64
+			ID     int64  `json:"id"`
 			Prefix string `json:"key_prefix"`
 			config.Autolink
 		}
@@ -331,8 +337,8 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 	}
 	if err := read("deploy_keys", d.DeployKeys != nil, func() error {
 		var items []struct {
-			ID    int64
-			Title string
+			ID    int64  `json:"id"`
+			Title string `json:"title"`
 			config.DeployKey
 		}
 		if err := c.paged(ctx, repoPath(owner, repo, "/keys"), &items); err != nil {
@@ -353,7 +359,9 @@ func (c *Client) readAdditional(ctx context.Context, owner, repo string, scope R
 		return err
 	}
 	return read("environments", d.Environments != nil, func() error {
-		var items []struct{ Name string }
+		var items []struct {
+			Name string `json:"name"`
+		}
 		if err := c.wrappedPaged(ctx, repoPath(owner, repo, "/environments"), "environments", &items); err != nil {
 			return err
 		}
@@ -374,13 +382,15 @@ func (c *Client) readEnvironmentScoped(ctx context.Context, owner, repo, name st
 	var raw struct {
 		DeploymentBranchPolicy *config.DeploymentBranchPolicy `json:"deployment_branch_policy"`
 		Rules                  []struct {
-			Type              string
-			WaitTimer         int  `json:"wait_timer"`
-			PreventSelfReview bool `json:"prevent_self_review"`
+			Type              string `json:"type"`
+			WaitTimer         int    `json:"wait_timer"`
+			PreventSelfReview bool   `json:"prevent_self_review"`
 			Reviewers         []struct {
-				Type     string
-				Reviewer struct{ ID int64 }
-			}
+				Type     string `json:"type"`
+				Reviewer struct {
+					ID int64 `json:"id"`
+				} `json:"reviewer"`
+			} `json:"reviewers"`
 		} `json:"protection_rules"`
 	}
 	if _, err := c.request(ctx, http.MethodGet, path, nil, &raw); err != nil {
@@ -405,7 +415,10 @@ func (c *Client) readEnvironmentScoped(ctx context.Context, owner, repo, name st
 	}
 	branches, tags := []string{}, []string{}
 	if raw.DeploymentBranchPolicy != nil && raw.DeploymentBranchPolicy.CustomBranchPolicies {
-		var policies []struct{ Name, Type string }
+		var policies []struct {
+			Name string `json:"name"`
+			Type string `json:"type"`
+		}
 		if err := c.wrappedPaged(ctx, path+"/deployment-branch-policies", "branch_policies", &policies); err != nil {
 			return e, err
 		}
@@ -482,8 +495,9 @@ func (c *Client) SetEnvironment(ctx context.Context, owner, repo, name string, w
 	if want.DeploymentBranchPolicy == nil || want.DeploymentBranchPolicy.CustomBranchPolicies {
 		if want.DeploymentBranchPatterns != nil || want.DeploymentTagPatterns != nil {
 			var policies []struct {
-				ID         int64
-				Name, Type string
+				ID   int64  `json:"id"`
+				Name string `json:"name"`
+				Type string `json:"type"`
 			}
 			if err := c.wrappedPaged(ctx, repoPath(owner, repo, suffix+"/deployment-branch-policies"), "branch_policies", &policies); err != nil {
 				return err

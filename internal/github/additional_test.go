@@ -2,7 +2,7 @@ package github
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"strings"
 	"testing"
@@ -103,7 +103,7 @@ func TestEnvironmentPoliciesAndVariables(t *testing.T) {
 		}
 		var body map[string]any
 		if r.Body != nil {
-			_ = json.NewDecoder(r.Body).Decode(&body)
+			_ = json.UnmarshalRead(r.Body, &body)
 		}
 		if r.Method == "PUT" && strings.HasSuffix(r.URL.Path, "prod") {
 			if body["deployment_branch_policy"] == nil {

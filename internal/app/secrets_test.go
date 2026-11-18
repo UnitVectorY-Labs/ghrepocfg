@@ -3,7 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,7 +44,7 @@ func TestSecretsApplyUploadsExactCiphertextEveryTime(t *testing.T) {
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL)
 		}
 		var payload map[string]string
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		if err := json.UnmarshalRead(r.Body, &payload); err != nil {
 			t.Fatal(err)
 		}
 		if len(payload) != 2 || payload["key_id"] != "123" || payload["encrypted_value"] != ciphertext {
@@ -321,7 +321,7 @@ func TestSecretsApplicationsUseSeparateKeysAndPayloads(t *testing.T) {
 			t.Fatalf("unexpected mutation %s %s", r.Method, r.URL)
 		}
 		var body map[string]string
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err := json.UnmarshalRead(r.Body, &body); err != nil {
 			t.Fatal(err)
 		}
 		if len(body) != 2 || body["key_id"] != application+"-key" || body["encrypted_value"] != ciphertext {

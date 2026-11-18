@@ -2,7 +2,8 @@ package github
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -50,7 +51,7 @@ type ReadScope struct {
 func (c *Client) Read(ctx context.Context, owner, repo string, scope ReadScope) (*State, error) {
 	s := &State{}
 	// Repository metadata is always read: it proves access and supports warnings.
-	var raw map[string]json.RawMessage
+	var raw map[string]jsontext.Value
 	if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, ""), nil, &raw); err != nil {
 		return nil, err
 	}
@@ -156,7 +157,7 @@ func (c *Client) readCustomProperties(ctx context.Context, owner, repo string) (
 	return result, nil
 }
 
-func unknownRepositoryFields(raw map[string]json.RawMessage) []string {
+func unknownRepositoryFields(raw map[string]jsontext.Value) []string {
 	// This includes both managed fields and deliberately recognized read-only or
 	// high-risk response fields. Verbose output is reserved for genuinely new
 	// REST response keys, rather than listing GitHub's normal metadata.
@@ -177,9 +178,9 @@ func unknownRepositoryFields(raw map[string]json.RawMessage) []string {
 
 func (c *Client) readCollaborators(ctx context.Context, owner, repo string) (map[string]Collaborator, error) {
 	var users []struct {
-		Login       string
-		RoleName    string `json:"role_name"`
-		Permissions map[string]bool
+		Login       string          `json:"login"`
+		RoleName    string          `json:"role_name"`
+		Permissions map[string]bool `json:"permissions"`
 	}
 	if err := c.paged(ctx, repoPath(owner, repo, "/collaborators?affiliation=direct"), &users); err != nil {
 		return nil, err
@@ -189,9 +190,12 @@ func (c *Client) readCollaborators(ctx context.Context, owner, repo string) (map
 		result[strings.ToLower(u.Login)] = Collaborator{Permission: permission(u.RoleName, u.Permissions)}
 	}
 	var invitations []struct {
-		ID                      int64
-		Permissions, Permission string
-		Invitee                 *struct{ Login string }
+		ID          int64  `json:"id"`
+		Permissions string `json:"permissions"`
+		Permission  string `json:"permission"`
+		Invitee     *struct {
+			Login string `json:"login"`
+		} `json:"invitee"`
 	}
 	if err := c.paged(ctx, repoPath(owner, repo, "/invitations"), &invitations); err != nil {
 		return nil, err
@@ -231,10 +235,11 @@ func permission(role string, p map[string]bool) string {
 
 func (c *Client) readTeams(ctx context.Context, owner, repo string) (map[string]Team, error) {
 	var teams []struct {
-		Slug, Permission string
-		AccessSource     string `json:"access_source"`
-		Type             string `json:"type"`
-		Permissions      map[string]bool
+		Slug         string          `json:"slug"`
+		Permission   string          `json:"permission"`
+		AccessSource string          `json:"access_source"`
+		Type         string          `json:"type"`
+		Permissions  map[string]bool `json:"permissions"`
 	}
 	if err := c.paged(ctx, repoPath(owner, repo, "/teams"), &teams); err != nil {
 		return nil, err
@@ -251,8 +256,9 @@ func (c *Client) readTeams(ctx context.Context, owner, repo string) (map[string]
 
 func (c *Client) readRulesets(ctx context.Context, owner, repo string) (map[string]Ruleset, error) {
 	var summaries []struct {
-		ID               int64
-		Name, SourceType string
+		ID         int64  `json:"id"`
+		Name       string `json:"name"`
+		SourceType string `json:"source_type"`
 	}
 	if err := c.paged(ctx, repoPath(owner, repo, "/rulesets?includes_parents=false"), &summaries); err != nil {
 		return nil, err
@@ -288,8 +294,8 @@ func (c *Client) readRulesets(ctx context.Context, owner, repo string) (map[stri
 func (c *Client) legacyWarnings(ctx context.Context, owner, repo string) []string {
 	var warnings []string
 	var branches []struct {
-		Name      string
-		Protected bool
+		Name      string `json:"name"`
+		Protected bool   `json:"protected"`
 	}
 	if err := c.paged(ctx, repoPath(owner, repo, "/branches?protected=true"), &branches); err == nil {
 		for _, b := range branches {
@@ -301,7 +307,7 @@ func (c *Client) legacyWarnings(ctx context.Context, owner, repo string) []strin
 			}
 		}
 	}
-	var tags []json.RawMessage
+	var tags []jsontext.Value
 	if _, err := c.request(ctx, http.MethodGet, repoPath(owner, repo, "/tags/protection"), nil, &tags); err == nil && len(tags) > 0 {
 		warnings = append(warnings, "legacy tag protection exists and is not managed")
 	}
