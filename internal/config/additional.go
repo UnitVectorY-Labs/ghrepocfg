@@ -13,36 +13,36 @@ var (
 )
 
 type CodeScanningSetup struct {
-	State       *string   `yaml:"state,omitempty" json:"state,omitempty"`
-	Languages   *[]string `yaml:"languages,omitempty" json:"languages,omitempty"`
-	QuerySuite  *string   `yaml:"query_suite,omitempty" json:"query_suite,omitempty"`
-	ThreatModel *string   `yaml:"threat_model,omitempty" json:"threat_model,omitempty"`
-	RunnerType  *string   `yaml:"runner_type,omitempty" json:"runner_type,omitempty"`
-	RunnerLabel *string   `yaml:"runner_label,omitempty" json:"runner_label,omitempty"`
+	State       *string   `yaml:"state,omitempty" json:"state,omitzero"`
+	Languages   *[]string `yaml:"languages,omitempty" json:"languages,omitzero"`
+	QuerySuite  *string   `yaml:"query_suite,omitempty" json:"query_suite,omitzero"`
+	ThreatModel *string   `yaml:"threat_model,omitempty" json:"threat_model,omitzero"`
+	RunnerType  *string   `yaml:"runner_type,omitempty" json:"runner_type,omitzero"`
+	RunnerLabel *string   `yaml:"runner_label,omitempty" json:"runner_label,omitzero"`
 }
 type PrivateForkWorkflows struct {
-	RunWorkflowsFromForkPullRequests  *bool `yaml:"run_workflows_from_fork_pull_requests,omitempty" json:"run_workflows_from_fork_pull_requests,omitempty"`
-	SendWriteTokensToWorkflows        *bool `yaml:"send_write_tokens_to_workflows,omitempty" json:"send_write_tokens_to_workflows,omitempty"`
-	SendSecretsAndVariables           *bool `yaml:"send_secrets_and_variables,omitempty" json:"send_secrets_and_variables,omitempty"`
-	RequireApprovalForForkPRWorkflows *bool `yaml:"require_approval_for_fork_pr_workflows,omitempty" json:"require_approval_for_fork_pr_workflows,omitempty"`
+	RunWorkflowsFromForkPullRequests  *bool `yaml:"run_workflows_from_fork_pull_requests,omitempty" json:"run_workflows_from_fork_pull_requests,omitzero"`
+	SendWriteTokensToWorkflows        *bool `yaml:"send_write_tokens_to_workflows,omitempty" json:"send_write_tokens_to_workflows,omitzero"`
+	SendSecretsAndVariables           *bool `yaml:"send_secrets_and_variables,omitempty" json:"send_secrets_and_variables,omitzero"`
+	RequireApprovalForForkPRWorkflows *bool `yaml:"require_approval_for_fork_pr_workflows,omitempty" json:"require_approval_for_fork_pr_workflows,omitzero"`
 }
 type OIDCSettings struct {
-	UseDefault          *bool     `yaml:"use_default,omitempty" json:"use_default,omitempty"`
-	IncludeClaimKeys    *[]string `yaml:"include_claim_keys,omitempty" json:"include_claim_keys,omitempty"`
-	UseImmutableSubject *bool     `yaml:"use_immutable_subject,omitempty" json:"use_immutable_subject,omitempty"`
+	UseDefault          *bool     `yaml:"use_default,omitempty" json:"use_default,omitzero"`
+	IncludeClaimKeys    *[]string `yaml:"include_claim_keys,omitempty" json:"include_claim_keys,omitzero"`
+	UseImmutableSubject *bool     `yaml:"use_immutable_subject,omitempty" json:"use_immutable_subject,omitzero"`
 }
 type CacheSettings struct {
-	MaxRetentionDays *int `yaml:"max_retention_days,omitempty" json:"max_retention_days,omitempty"`
-	MaxSizeGB        *int `yaml:"max_size_gb,omitempty" json:"max_size_gb,omitempty"`
+	MaxRetentionDays *int `yaml:"max_retention_days,omitempty" json:"max_retention_days,omitzero"`
+	MaxSizeGB        *int `yaml:"max_size_gb,omitempty" json:"max_size_gb,omitzero"`
 }
 type Environment struct {
-	WaitTimer                *int                    `yaml:"wait_timer,omitempty" json:"wait_timer,omitempty"`
-	PreventSelfReview        *bool                   `yaml:"prevent_self_review,omitempty" json:"prevent_self_review,omitempty"`
-	Reviewers                *[]EnvironmentReviewer  `yaml:"reviewers,omitempty" json:"reviewers,omitempty"`
-	DeploymentBranchPolicy   *DeploymentBranchPolicy `yaml:"deployment_branch_policy,omitempty" json:"deployment_branch_policy,omitempty"`
-	DeploymentBranchPatterns *[]string               `yaml:"deployment_branch_patterns,omitempty" json:"deployment_branch_patterns,omitempty"`
-	DeploymentTagPatterns    *[]string               `yaml:"deployment_tag_patterns,omitempty" json:"deployment_tag_patterns,omitempty"`
-	Variables                *map[string]string      `yaml:"variables,omitempty" json:"variables,omitempty"`
+	WaitTimer                *int                    `yaml:"wait_timer,omitempty" json:"wait_timer,omitzero"`
+	PreventSelfReview        *bool                   `yaml:"prevent_self_review,omitempty" json:"prevent_self_review,omitzero"`
+	Reviewers                *[]EnvironmentReviewer  `yaml:"reviewers,omitempty" json:"reviewers,omitzero"`
+	DeploymentBranchPolicy   *DeploymentBranchPolicy `yaml:"deployment_branch_policy,omitempty" json:"deployment_branch_policy,omitzero"`
+	DeploymentBranchPatterns *[]string               `yaml:"deployment_branch_patterns,omitempty" json:"deployment_branch_patterns,omitzero"`
+	DeploymentTagPatterns    *[]string               `yaml:"deployment_tag_patterns,omitempty" json:"deployment_tag_patterns,omitzero"`
+	Variables                *map[string]string      `yaml:"variables,omitempty" json:"variables,omitzero"`
 }
 type EnvironmentReviewer struct {
 	Type string `yaml:"type" json:"type"`
@@ -53,11 +53,11 @@ type DeploymentBranchPolicy struct {
 	CustomBranchPolicies bool `yaml:"custom_branch_policies" json:"custom_branch_policies"`
 }
 type PagesSettings struct {
-	Enabled       *bool        `yaml:"enabled,omitempty" json:"enabled,omitempty"`
-	BuildType     *string      `yaml:"build_type,omitempty" json:"build_type,omitempty"`
-	Source        *PagesSource `yaml:"source,omitempty" json:"source,omitempty"`
-	CNAME         *string      `yaml:"cname,omitempty" json:"cname,omitempty"`
-	HTTPSEnforced *bool        `yaml:"https_enforced,omitempty" json:"https_enforced,omitempty"`
+	Enabled       *bool        `yaml:"enabled,omitempty" json:"enabled,omitzero"`
+	BuildType     *string      `yaml:"build_type,omitempty" json:"build_type,omitzero"`
+	Source        *PagesSource `yaml:"source,omitempty" json:"source,omitzero"`
+	CNAME         *string      `yaml:"cname,omitempty" json:"cname,omitzero"`
+	HTTPSEnforced *bool        `yaml:"https_enforced,omitempty" json:"https_enforced,omitzero"`
 }
 type PagesSource struct {
 	Branch string `yaml:"branch" json:"branch"`

@@ -2,7 +2,7 @@ package app
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"net/http"
 	"os"
@@ -85,8 +85,8 @@ func TestApplyStrictReadFailureAndJSONCompleteness(t *testing.T) {
 		}
 		if flags[len(flags)-1] == "--json" {
 			var p struct {
-				Complete bool
-				Skipped  []any
+				Complete bool  `json:"complete"`
+				Skipped  []any `json:"skipped"`
 			}
 			if err := json.Unmarshal(out.Bytes(), &p); err != nil || p.Complete || len(p.Skipped) != 1 {
 				t.Fatalf("json=%s err=%v", &out, err)

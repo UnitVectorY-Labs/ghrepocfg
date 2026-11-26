@@ -4,7 +4,8 @@ package github
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -74,9 +75,9 @@ func (c *Client) request(ctx context.Context, method, path string, body any, out
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var detail struct {
-			Message          string
-			DocumentationURL string `json:"documentation_url"`
-			Errors           json.RawMessage
+			Message          string         `json:"message"`
+			DocumentationURL string         `json:"documentation_url"`
+			Errors           jsontext.Value `json:"errors"`
 		}
 		_ = json.Unmarshal(b, &detail)
 		return resp.Header, &APIError{Method: method, Path: path, Status: resp.StatusCode, Message: detail.Message, DocumentationURL: detail.DocumentationURL, Headers: resp.Header.Clone()}
@@ -96,9 +97,9 @@ func (c *Client) paged(ctx context.Context, path string, out any) error {
 		sep = "&"
 	}
 	next := path + sep + "per_page=100"
-	var aggregate []json.RawMessage
+	var aggregate []jsontext.Value
 	for next != "" {
-		var page []json.RawMessage
+		var page []jsontext.Value
 		headers, err := c.request(ctx, http.MethodGet, next, nil, &page)
 		if err != nil {
 			return err

@@ -3,7 +3,7 @@ package config
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -17,21 +17,21 @@ import (
 // Config is the complete v1 configuration. A nil section is unmanaged, while
 // a present collection (including an empty one) is authoritative, except Secrets.
 type Config struct {
-	Agents           *SecretSettings                 `yaml:"agents,omitempty" json:"agents,omitempty"`
-	Codespaces       *SecretSettings                 `yaml:"codespaces,omitempty" json:"codespaces,omitempty"`
-	Dependabot       *SecretSettings                 `yaml:"dependabot,omitempty" json:"dependabot,omitempty"`
-	Environments     *map[string]Environment         `yaml:"environments,omitempty" json:"environments,omitempty"`
-	Pages            *PagesSettings                  `yaml:"pages,omitempty" json:"pages,omitempty"`
-	Labels           *map[string]Label               `yaml:"labels,omitempty" json:"labels,omitempty"`
-	Autolinks        *map[string]Autolink            `yaml:"autolinks,omitempty" json:"autolinks,omitempty"`
-	DeployKeys       *map[string]DeployKey           `yaml:"deploy_keys,omitempty" json:"deploy_keys,omitempty"`
-	Repository       *RepositorySettings             `yaml:"repository,omitempty" json:"repository,omitempty"`
-	CustomProperties *map[string]CustomPropertyValue `yaml:"custom_properties,omitempty" json:"custom_properties,omitempty"`
-	Security         *SecuritySettings               `yaml:"security,omitempty" json:"security,omitempty"`
-	Actions          *ActionsSettings                `yaml:"actions,omitempty" json:"actions,omitempty"`
-	Collaborators    *map[string]Access              `yaml:"collaborators,omitempty" json:"collaborators,omitempty"`
-	Teams            *map[string]Access              `yaml:"teams,omitempty" json:"teams,omitempty"`
-	Rulesets         *map[string]Ruleset             `yaml:"rulesets,omitempty" json:"rulesets,omitempty"`
+	Agents           *SecretSettings                 `yaml:"agents,omitempty" json:"agents,omitzero"`
+	Codespaces       *SecretSettings                 `yaml:"codespaces,omitempty" json:"codespaces,omitzero"`
+	Dependabot       *SecretSettings                 `yaml:"dependabot,omitempty" json:"dependabot,omitzero"`
+	Environments     *map[string]Environment         `yaml:"environments,omitempty" json:"environments,omitzero"`
+	Pages            *PagesSettings                  `yaml:"pages,omitempty" json:"pages,omitzero"`
+	Labels           *map[string]Label               `yaml:"labels,omitempty" json:"labels,omitzero"`
+	Autolinks        *map[string]Autolink            `yaml:"autolinks,omitempty" json:"autolinks,omitzero"`
+	DeployKeys       *map[string]DeployKey           `yaml:"deploy_keys,omitempty" json:"deploy_keys,omitzero"`
+	Repository       *RepositorySettings             `yaml:"repository,omitempty" json:"repository,omitzero"`
+	CustomProperties *map[string]CustomPropertyValue `yaml:"custom_properties,omitempty" json:"custom_properties,omitzero"`
+	Security         *SecuritySettings               `yaml:"security,omitempty" json:"security,omitzero"`
+	Actions          *ActionsSettings                `yaml:"actions,omitempty" json:"actions,omitzero"`
+	Collaborators    *map[string]Access              `yaml:"collaborators,omitempty" json:"collaborators,omitzero"`
+	Teams            *map[string]Access              `yaml:"teams,omitempty" json:"teams,omitzero"`
+	Rulesets         *map[string]Ruleset             `yaml:"rulesets,omitempty" json:"rulesets,omitzero"`
 }
 
 // CustomPropertyValue is a repository custom-property value. GitHub supports
@@ -94,47 +94,47 @@ func (v CustomPropertyValue) MarshalJSON() ([]byte, error) { return json.Marshal
 // Update a repository endpoint; immutable releases uses its dedicated endpoint.
 // Identity, visibility, and archive state are intentionally absent.
 type RepositorySettings struct {
-	ImmutableReleases         *bool     `yaml:"immutable_releases,omitempty" json:"immutable_releases,omitempty"`
-	Description               *string   `yaml:"description,omitempty" json:"description,omitempty"`
-	Homepage                  *string   `yaml:"homepage,omitempty" json:"homepage,omitempty"`
-	HasIssues                 *bool     `yaml:"has_issues,omitempty" json:"has_issues,omitempty"`
-	HasProjects               *bool     `yaml:"has_projects,omitempty" json:"has_projects,omitempty"`
-	HasWiki                   *bool     `yaml:"has_wiki,omitempty" json:"has_wiki,omitempty"`
-	HasDiscussions            *bool     `yaml:"has_discussions,omitempty" json:"has_discussions,omitempty"`
-	HasPullRequests           *bool     `yaml:"has_pull_requests,omitempty" json:"has_pull_requests,omitempty"`
-	PullRequestCreationPolicy *string   `yaml:"pull_request_creation_policy,omitempty" json:"pull_request_creation_policy,omitempty"`
-	IsTemplate                *bool     `yaml:"is_template,omitempty" json:"is_template,omitempty"`
-	DefaultBranch             *string   `yaml:"default_branch,omitempty" json:"default_branch,omitempty"`
-	AllowSquashMerge          *bool     `yaml:"allow_squash_merge,omitempty" json:"allow_squash_merge,omitempty"`
-	AllowMergeCommit          *bool     `yaml:"allow_merge_commit,omitempty" json:"allow_merge_commit,omitempty"`
-	AllowRebaseMerge          *bool     `yaml:"allow_rebase_merge,omitempty" json:"allow_rebase_merge,omitempty"`
-	AllowAutoMerge            *bool     `yaml:"allow_auto_merge,omitempty" json:"allow_auto_merge,omitempty"`
-	DeleteBranchOnMerge       *bool     `yaml:"delete_branch_on_merge,omitempty" json:"delete_branch_on_merge,omitempty"`
-	AllowUpdateBranch         *bool     `yaml:"allow_update_branch,omitempty" json:"allow_update_branch,omitempty"`
-	UseSquashPRTitleAsDefault *bool     `yaml:"use_squash_pr_title_as_default,omitempty" json:"use_squash_pr_title_as_default,omitempty"`
-	SquashMergeCommitTitle    *string   `yaml:"squash_merge_commit_title,omitempty" json:"squash_merge_commit_title,omitempty"`
-	SquashMergeCommitMessage  *string   `yaml:"squash_merge_commit_message,omitempty" json:"squash_merge_commit_message,omitempty"`
-	MergeCommitTitle          *string   `yaml:"merge_commit_title,omitempty" json:"merge_commit_title,omitempty"`
-	MergeCommitMessage        *string   `yaml:"merge_commit_message,omitempty" json:"merge_commit_message,omitempty"`
-	WebCommitSignoffRequired  *bool     `yaml:"web_commit_signoff_required,omitempty" json:"web_commit_signoff_required,omitempty"`
-	AllowForking              *bool     `yaml:"allow_forking,omitempty" json:"allow_forking,omitempty"`
-	Topics                    *[]string `yaml:"topics,omitempty" json:"topics,omitempty"`
+	ImmutableReleases         *bool     `yaml:"immutable_releases,omitempty" json:"immutable_releases,omitzero"`
+	Description               *string   `yaml:"description,omitempty" json:"description,omitzero"`
+	Homepage                  *string   `yaml:"homepage,omitempty" json:"homepage,omitzero"`
+	HasIssues                 *bool     `yaml:"has_issues,omitempty" json:"has_issues,omitzero"`
+	HasProjects               *bool     `yaml:"has_projects,omitempty" json:"has_projects,omitzero"`
+	HasWiki                   *bool     `yaml:"has_wiki,omitempty" json:"has_wiki,omitzero"`
+	HasDiscussions            *bool     `yaml:"has_discussions,omitempty" json:"has_discussions,omitzero"`
+	HasPullRequests           *bool     `yaml:"has_pull_requests,omitempty" json:"has_pull_requests,omitzero"`
+	PullRequestCreationPolicy *string   `yaml:"pull_request_creation_policy,omitempty" json:"pull_request_creation_policy,omitzero"`
+	IsTemplate                *bool     `yaml:"is_template,omitempty" json:"is_template,omitzero"`
+	DefaultBranch             *string   `yaml:"default_branch,omitempty" json:"default_branch,omitzero"`
+	AllowSquashMerge          *bool     `yaml:"allow_squash_merge,omitempty" json:"allow_squash_merge,omitzero"`
+	AllowMergeCommit          *bool     `yaml:"allow_merge_commit,omitempty" json:"allow_merge_commit,omitzero"`
+	AllowRebaseMerge          *bool     `yaml:"allow_rebase_merge,omitempty" json:"allow_rebase_merge,omitzero"`
+	AllowAutoMerge            *bool     `yaml:"allow_auto_merge,omitempty" json:"allow_auto_merge,omitzero"`
+	DeleteBranchOnMerge       *bool     `yaml:"delete_branch_on_merge,omitempty" json:"delete_branch_on_merge,omitzero"`
+	AllowUpdateBranch         *bool     `yaml:"allow_update_branch,omitempty" json:"allow_update_branch,omitzero"`
+	UseSquashPRTitleAsDefault *bool     `yaml:"use_squash_pr_title_as_default,omitempty" json:"use_squash_pr_title_as_default,omitzero"`
+	SquashMergeCommitTitle    *string   `yaml:"squash_merge_commit_title,omitempty" json:"squash_merge_commit_title,omitzero"`
+	SquashMergeCommitMessage  *string   `yaml:"squash_merge_commit_message,omitempty" json:"squash_merge_commit_message,omitzero"`
+	MergeCommitTitle          *string   `yaml:"merge_commit_title,omitempty" json:"merge_commit_title,omitzero"`
+	MergeCommitMessage        *string   `yaml:"merge_commit_message,omitempty" json:"merge_commit_message,omitzero"`
+	WebCommitSignoffRequired  *bool     `yaml:"web_commit_signoff_required,omitempty" json:"web_commit_signoff_required,omitzero"`
+	AllowForking              *bool     `yaml:"allow_forking,omitempty" json:"allow_forking,omitzero"`
+	Topics                    *[]string `yaml:"topics,omitempty" json:"topics,omitzero"`
 }
 
 type SecuritySettings struct {
-	PrivateVulnerabilityReporting         *bool                   `yaml:"private_vulnerability_reporting,omitempty" json:"private_vulnerability_reporting,omitempty"`
-	CodeScanningDefaultSetup              *CodeScanningSetup      `yaml:"code_scanning_default_setup,omitempty" json:"code_scanning_default_setup,omitempty"`
-	VulnerabilityAlerts                   *bool                   `yaml:"vulnerability_alerts,omitempty" json:"vulnerability_alerts,omitempty"`
-	AutomatedSecurityFixes                *bool                   `yaml:"automated_security_fixes,omitempty" json:"automated_security_fixes,omitempty"`
-	AdvancedSecurity                      *FeatureStatus          `yaml:"advanced_security,omitempty" json:"advanced_security,omitempty"`
-	CodeSecurity                          *FeatureStatus          `yaml:"code_security,omitempty" json:"code_security,omitempty"`
-	SecretScanning                        *FeatureStatus          `yaml:"secret_scanning,omitempty" json:"secret_scanning,omitempty"`
-	SecretScanningPushProtection          *FeatureStatus          `yaml:"secret_scanning_push_protection,omitempty" json:"secret_scanning_push_protection,omitempty"`
-	SecretScanningAIDetection             *FeatureStatus          `yaml:"secret_scanning_ai_detection,omitempty" json:"secret_scanning_ai_detection,omitempty"`
-	SecretScanningNonProviderPatterns     *FeatureStatus          `yaml:"secret_scanning_non_provider_patterns,omitempty" json:"secret_scanning_non_provider_patterns,omitempty"`
-	SecretScanningDelegatedAlertDismissal *FeatureStatus          `yaml:"secret_scanning_delegated_alert_dismissal,omitempty" json:"secret_scanning_delegated_alert_dismissal,omitempty"`
-	SecretScanningDelegatedBypass         *FeatureStatus          `yaml:"secret_scanning_delegated_bypass,omitempty" json:"secret_scanning_delegated_bypass,omitempty"`
-	SecretScanningDelegatedBypassOptions  *DelegatedBypassOptions `yaml:"secret_scanning_delegated_bypass_options,omitempty" json:"secret_scanning_delegated_bypass_options,omitempty"`
+	PrivateVulnerabilityReporting         *bool                   `yaml:"private_vulnerability_reporting,omitempty" json:"private_vulnerability_reporting,omitzero"`
+	CodeScanningDefaultSetup              *CodeScanningSetup      `yaml:"code_scanning_default_setup,omitempty" json:"code_scanning_default_setup,omitzero"`
+	VulnerabilityAlerts                   *bool                   `yaml:"vulnerability_alerts,omitempty" json:"vulnerability_alerts,omitzero"`
+	AutomatedSecurityFixes                *bool                   `yaml:"automated_security_fixes,omitempty" json:"automated_security_fixes,omitzero"`
+	AdvancedSecurity                      *FeatureStatus          `yaml:"advanced_security,omitempty" json:"advanced_security,omitzero"`
+	CodeSecurity                          *FeatureStatus          `yaml:"code_security,omitempty" json:"code_security,omitzero"`
+	SecretScanning                        *FeatureStatus          `yaml:"secret_scanning,omitempty" json:"secret_scanning,omitzero"`
+	SecretScanningPushProtection          *FeatureStatus          `yaml:"secret_scanning_push_protection,omitempty" json:"secret_scanning_push_protection,omitzero"`
+	SecretScanningAIDetection             *FeatureStatus          `yaml:"secret_scanning_ai_detection,omitempty" json:"secret_scanning_ai_detection,omitzero"`
+	SecretScanningNonProviderPatterns     *FeatureStatus          `yaml:"secret_scanning_non_provider_patterns,omitempty" json:"secret_scanning_non_provider_patterns,omitzero"`
+	SecretScanningDelegatedAlertDismissal *FeatureStatus          `yaml:"secret_scanning_delegated_alert_dismissal,omitempty" json:"secret_scanning_delegated_alert_dismissal,omitzero"`
+	SecretScanningDelegatedBypass         *FeatureStatus          `yaml:"secret_scanning_delegated_bypass,omitempty" json:"secret_scanning_delegated_bypass,omitzero"`
+	SecretScanningDelegatedBypassOptions  *DelegatedBypassOptions `yaml:"secret_scanning_delegated_bypass_options,omitempty" json:"secret_scanning_delegated_bypass_options,omitzero"`
 }
 
 type FeatureStatus struct {
@@ -152,26 +152,26 @@ type BypassReviewer struct {
 }
 
 type ActionsSettings struct {
-	Secrets                      *map[string]EncryptedSecret `yaml:"secrets,omitempty" json:"secrets,omitempty"`
-	SHAPinningRequired           *bool                       `yaml:"sha_pinning_required,omitempty" json:"sha_pinning_required,omitempty"`
-	ArtifactAndLogRetentionDays  *int                        `yaml:"artifact_and_log_retention_days,omitempty" json:"artifact_and_log_retention_days,omitempty"`
-	ForkPRContributorApproval    *string                     `yaml:"fork_pr_contributor_approval,omitempty" json:"fork_pr_contributor_approval,omitempty"`
-	PrivateForkWorkflows         *PrivateForkWorkflows       `yaml:"private_fork_workflows,omitempty" json:"private_fork_workflows,omitempty"`
-	AccessLevel                  *string                     `yaml:"access_level,omitempty" json:"access_level,omitempty"`
-	OIDC                         *OIDCSettings               `yaml:"oidc,omitempty" json:"oidc,omitempty"`
-	Cache                        *CacheSettings              `yaml:"cache,omitempty" json:"cache,omitempty"`
-	Variables                    *map[string]string          `yaml:"variables,omitempty" json:"variables,omitempty"`
-	Enabled                      *bool                       `yaml:"enabled,omitempty" json:"enabled,omitempty"`
-	AllowedActions               *string                     `yaml:"allowed_actions,omitempty" json:"allowed_actions,omitempty"`
-	SelectedActions              *SelectedActions            `yaml:"selected_actions,omitempty" json:"selected_actions,omitempty"`
-	DefaultWorkflowPermissions   *string                     `yaml:"default_workflow_permissions,omitempty" json:"default_workflow_permissions,omitempty"`
-	CanApprovePullRequestReviews *bool                       `yaml:"can_approve_pull_request_reviews,omitempty" json:"can_approve_pull_request_reviews,omitempty"`
+	Secrets                      *map[string]EncryptedSecret `yaml:"secrets,omitempty" json:"secrets,omitzero"`
+	SHAPinningRequired           *bool                       `yaml:"sha_pinning_required,omitempty" json:"sha_pinning_required,omitzero"`
+	ArtifactAndLogRetentionDays  *int                        `yaml:"artifact_and_log_retention_days,omitempty" json:"artifact_and_log_retention_days,omitzero"`
+	ForkPRContributorApproval    *string                     `yaml:"fork_pr_contributor_approval,omitempty" json:"fork_pr_contributor_approval,omitzero"`
+	PrivateForkWorkflows         *PrivateForkWorkflows       `yaml:"private_fork_workflows,omitempty" json:"private_fork_workflows,omitzero"`
+	AccessLevel                  *string                     `yaml:"access_level,omitempty" json:"access_level,omitzero"`
+	OIDC                         *OIDCSettings               `yaml:"oidc,omitempty" json:"oidc,omitzero"`
+	Cache                        *CacheSettings              `yaml:"cache,omitempty" json:"cache,omitzero"`
+	Variables                    *map[string]string          `yaml:"variables,omitempty" json:"variables,omitzero"`
+	Enabled                      *bool                       `yaml:"enabled,omitempty" json:"enabled,omitzero"`
+	AllowedActions               *string                     `yaml:"allowed_actions,omitempty" json:"allowed_actions,omitzero"`
+	SelectedActions              *SelectedActions            `yaml:"selected_actions,omitempty" json:"selected_actions,omitzero"`
+	DefaultWorkflowPermissions   *string                     `yaml:"default_workflow_permissions,omitempty" json:"default_workflow_permissions,omitzero"`
+	CanApprovePullRequestReviews *bool                       `yaml:"can_approve_pull_request_reviews,omitempty" json:"can_approve_pull_request_reviews,omitzero"`
 }
 
 type SelectedActions struct {
-	GitHubOwnedAllowed *bool     `yaml:"github_owned_allowed,omitempty" json:"github_owned_allowed,omitempty"`
-	VerifiedAllowed    *bool     `yaml:"verified_allowed,omitempty" json:"verified_allowed,omitempty"`
-	PatternsAllowed    *[]string `yaml:"patterns_allowed,omitempty" json:"patterns_allowed,omitempty"`
+	GitHubOwnedAllowed *bool     `yaml:"github_owned_allowed,omitempty" json:"github_owned_allowed,omitzero"`
+	VerifiedAllowed    *bool     `yaml:"verified_allowed,omitempty" json:"verified_allowed,omitzero"`
+	PatternsAllowed    *[]string `yaml:"patterns_allowed,omitempty" json:"patterns_allowed,omitzero"`
 }
 
 type Access struct {
@@ -187,13 +187,13 @@ type Ruleset struct {
 }
 
 type BypassActor struct {
-	ActorID    *int64 `yaml:"actor_id,omitempty" json:"actor_id,omitempty"`
+	ActorID    *int64 `yaml:"actor_id,omitempty" json:"actor_id,omitzero"`
 	ActorType  string `yaml:"actor_type" json:"actor_type"`
 	BypassMode string `yaml:"bypass_mode,omitempty" json:"bypass_mode,omitempty"`
 }
 
 type Conditions struct {
-	RefName *RefNameCondition `yaml:"ref_name,omitempty" json:"ref_name,omitempty"`
+	RefName *RefNameCondition `yaml:"ref_name,omitempty" json:"ref_name,omitzero"`
 }
 
 type RefNameCondition struct {
@@ -203,44 +203,44 @@ type RefNameCondition struct {
 
 type Rule struct {
 	Type       string          `yaml:"type" json:"type"`
-	Parameters *RuleParameters `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	Parameters *RuleParameters `yaml:"parameters,omitempty" json:"parameters,omitzero"`
 }
 
 // RuleParameters is the union of the documented repository ruleset parameter
 // objects. KnownFields decoding makes misspelled and future unsupported keys fail.
 type RuleParameters struct {
-	UpdateAllowsFetchAndMerge        *bool                       `yaml:"update_allows_fetch_and_merge,omitempty" json:"update_allows_fetch_and_merge,omitempty"`
-	CheckResponseTimeoutMinutes      *int                        `yaml:"check_response_timeout_minutes,omitempty" json:"check_response_timeout_minutes,omitempty"`
-	GroupingStrategy                 *string                     `yaml:"grouping_strategy,omitempty" json:"grouping_strategy,omitempty"`
-	MaxEntriesToBuild                *int                        `yaml:"max_entries_to_build,omitempty" json:"max_entries_to_build,omitempty"`
-	MaxEntriesToMerge                *int                        `yaml:"max_entries_to_merge,omitempty" json:"max_entries_to_merge,omitempty"`
-	MergeMethod                      *string                     `yaml:"merge_method,omitempty" json:"merge_method,omitempty"`
-	MinEntriesToMerge                *int                        `yaml:"min_entries_to_merge,omitempty" json:"min_entries_to_merge,omitempty"`
-	MinEntriesToMergeWaitMinutes     *int                        `yaml:"min_entries_to_merge_wait_minutes,omitempty" json:"min_entries_to_merge_wait_minutes,omitempty"`
-	DismissStaleReviewsOnPush        *bool                       `yaml:"dismiss_stale_reviews_on_push,omitempty" json:"dismiss_stale_reviews_on_push,omitempty"`
-	DismissalRestriction             *DismissalRestriction       `yaml:"dismissal_restriction,omitempty" json:"dismissal_restriction,omitempty"`
-	RequireCodeOwnerReview           *bool                       `yaml:"require_code_owner_review,omitempty" json:"require_code_owner_review,omitempty"`
-	RequireLastPushApproval          *bool                       `yaml:"require_last_push_approval,omitempty" json:"require_last_push_approval,omitempty"`
-	RequiredApprovingReviewCount     *int                        `yaml:"required_approving_review_count,omitempty" json:"required_approving_review_count,omitempty"`
-	RequiredReviewThreadResolution   *bool                       `yaml:"required_review_thread_resolution,omitempty" json:"required_review_thread_resolution,omitempty"`
-	RequiredReviewers                *[]RequiredReviewer         `yaml:"required_reviewers,omitempty" json:"required_reviewers,omitempty"`
-	AllowedMergeMethods              *[]string                   `yaml:"allowed_merge_methods,omitempty" json:"allowed_merge_methods,omitempty"`
-	RequiredStatusChecks             *[]RequiredStatusCheck      `yaml:"required_status_checks,omitempty" json:"required_status_checks,omitempty"`
-	StrictRequiredStatusChecksPolicy *bool                       `yaml:"strict_required_status_checks_policy,omitempty" json:"strict_required_status_checks_policy,omitempty"`
-	DoNotEnforceOnCreate             *bool                       `yaml:"do_not_enforce_on_create,omitempty" json:"do_not_enforce_on_create,omitempty"`
-	RequiredDeploymentEnvironments   *[]string                   `yaml:"required_deployment_environments,omitempty" json:"required_deployment_environments,omitempty"`
-	Name                             *string                     `yaml:"name,omitempty" json:"name,omitempty"`
-	Negate                           *bool                       `yaml:"negate,omitempty" json:"negate,omitempty"`
-	Operator                         *string                     `yaml:"operator,omitempty" json:"operator,omitempty"`
-	Pattern                          *string                     `yaml:"pattern,omitempty" json:"pattern,omitempty"`
-	RestrictedFilePaths              *[]string                   `yaml:"restricted_file_paths,omitempty" json:"restricted_file_paths,omitempty"`
-	MaxFilePathLength                *int                        `yaml:"max_file_path_length,omitempty" json:"max_file_path_length,omitempty"`
-	RestrictedFileExtensions         *[]string                   `yaml:"restricted_file_extensions,omitempty" json:"restricted_file_extensions,omitempty"`
-	MaxFileSize                      *int                        `yaml:"max_file_size,omitempty" json:"max_file_size,omitempty"`
-	Workflows                        *[]RequiredWorkflow         `yaml:"workflows,omitempty" json:"workflows,omitempty"`
-	CodeScanningTools                *[]RequiredCodeScanningTool `yaml:"code_scanning_tools,omitempty" json:"code_scanning_tools,omitempty"`
-	ReviewDraftPullRequests          *bool                       `yaml:"review_draft_pull_requests,omitempty" json:"review_draft_pull_requests,omitempty"`
-	ReviewOnPush                     *bool                       `yaml:"review_on_push,omitempty" json:"review_on_push,omitempty"`
+	UpdateAllowsFetchAndMerge        *bool                       `yaml:"update_allows_fetch_and_merge,omitempty" json:"update_allows_fetch_and_merge,omitzero"`
+	CheckResponseTimeoutMinutes      *int                        `yaml:"check_response_timeout_minutes,omitempty" json:"check_response_timeout_minutes,omitzero"`
+	GroupingStrategy                 *string                     `yaml:"grouping_strategy,omitempty" json:"grouping_strategy,omitzero"`
+	MaxEntriesToBuild                *int                        `yaml:"max_entries_to_build,omitempty" json:"max_entries_to_build,omitzero"`
+	MaxEntriesToMerge                *int                        `yaml:"max_entries_to_merge,omitempty" json:"max_entries_to_merge,omitzero"`
+	MergeMethod                      *string                     `yaml:"merge_method,omitempty" json:"merge_method,omitzero"`
+	MinEntriesToMerge                *int                        `yaml:"min_entries_to_merge,omitempty" json:"min_entries_to_merge,omitzero"`
+	MinEntriesToMergeWaitMinutes     *int                        `yaml:"min_entries_to_merge_wait_minutes,omitempty" json:"min_entries_to_merge_wait_minutes,omitzero"`
+	DismissStaleReviewsOnPush        *bool                       `yaml:"dismiss_stale_reviews_on_push,omitempty" json:"dismiss_stale_reviews_on_push,omitzero"`
+	DismissalRestriction             *DismissalRestriction       `yaml:"dismissal_restriction,omitempty" json:"dismissal_restriction,omitzero"`
+	RequireCodeOwnerReview           *bool                       `yaml:"require_code_owner_review,omitempty" json:"require_code_owner_review,omitzero"`
+	RequireLastPushApproval          *bool                       `yaml:"require_last_push_approval,omitempty" json:"require_last_push_approval,omitzero"`
+	RequiredApprovingReviewCount     *int                        `yaml:"required_approving_review_count,omitempty" json:"required_approving_review_count,omitzero"`
+	RequiredReviewThreadResolution   *bool                       `yaml:"required_review_thread_resolution,omitempty" json:"required_review_thread_resolution,omitzero"`
+	RequiredReviewers                *[]RequiredReviewer         `yaml:"required_reviewers,omitempty" json:"required_reviewers,omitzero"`
+	AllowedMergeMethods              *[]string                   `yaml:"allowed_merge_methods,omitempty" json:"allowed_merge_methods,omitzero"`
+	RequiredStatusChecks             *[]RequiredStatusCheck      `yaml:"required_status_checks,omitempty" json:"required_status_checks,omitzero"`
+	StrictRequiredStatusChecksPolicy *bool                       `yaml:"strict_required_status_checks_policy,omitempty" json:"strict_required_status_checks_policy,omitzero"`
+	DoNotEnforceOnCreate             *bool                       `yaml:"do_not_enforce_on_create,omitempty" json:"do_not_enforce_on_create,omitzero"`
+	RequiredDeploymentEnvironments   *[]string                   `yaml:"required_deployment_environments,omitempty" json:"required_deployment_environments,omitzero"`
+	Name                             *string                     `yaml:"name,omitempty" json:"name,omitzero"`
+	Negate                           *bool                       `yaml:"negate,omitempty" json:"negate,omitzero"`
+	Operator                         *string                     `yaml:"operator,omitempty" json:"operator,omitzero"`
+	Pattern                          *string                     `yaml:"pattern,omitempty" json:"pattern,omitzero"`
+	RestrictedFilePaths              *[]string                   `yaml:"restricted_file_paths,omitempty" json:"restricted_file_paths,omitzero"`
+	MaxFilePathLength                *int                        `yaml:"max_file_path_length,omitempty" json:"max_file_path_length,omitzero"`
+	RestrictedFileExtensions         *[]string                   `yaml:"restricted_file_extensions,omitempty" json:"restricted_file_extensions,omitzero"`
+	MaxFileSize                      *int                        `yaml:"max_file_size,omitempty" json:"max_file_size,omitzero"`
+	Workflows                        *[]RequiredWorkflow         `yaml:"workflows,omitempty" json:"workflows,omitzero"`
+	CodeScanningTools                *[]RequiredCodeScanningTool `yaml:"code_scanning_tools,omitempty" json:"code_scanning_tools,omitzero"`
+	ReviewDraftPullRequests          *bool                       `yaml:"review_draft_pull_requests,omitempty" json:"review_draft_pull_requests,omitzero"`
+	ReviewOnPush                     *bool                       `yaml:"review_on_push,omitempty" json:"review_on_push,omitzero"`
 }
 
 type DismissalRestriction struct {
@@ -260,14 +260,14 @@ type RequiredReviewer struct {
 
 type RequiredStatusCheck struct {
 	Context       string `yaml:"context" json:"context"`
-	IntegrationID *int64 `yaml:"integration_id,omitempty" json:"integration_id,omitempty"`
+	IntegrationID *int64 `yaml:"integration_id,omitempty" json:"integration_id,omitzero"`
 }
 
 type RequiredWorkflow struct {
 	Path         string  `yaml:"path" json:"path"`
 	RepositoryID int64   `yaml:"repository_id" json:"repository_id"`
-	Ref          *string `yaml:"ref,omitempty" json:"ref,omitempty"`
-	SHA          *string `yaml:"sha,omitempty" json:"sha,omitempty"`
+	Ref          *string `yaml:"ref,omitempty" json:"ref,omitzero"`
+	SHA          *string `yaml:"sha,omitempty" json:"sha,omitzero"`
 }
 
 type RequiredCodeScanningTool struct {
